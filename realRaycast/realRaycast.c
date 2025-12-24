@@ -48,7 +48,7 @@
 // Textures
 #include "textures.h"
 
-#include "arraySprites.h"
+#include "sprites.h"
 
 #define WALL_TEXTURES TRUE
 #define FLOOR_TEXTURES TRUE
@@ -528,8 +528,8 @@ void setup(void) {
     mobj_create(610, 185, 1); */
 
     //mobj_create(light.x, light.y, 2);
-    mobj_create(MOBJ_STATIC, 4 * GRID_SPACING, 3 * GRID_SPACING, 0, 0, SPRITE_GUY, 0);
-    mobj_create(MOBJ_STATIC, light.x, light.y, 0, 0, SPRITE_LIGHT, 0);
+    mobj_create(MOBJ_STATIC, 4 * GRID_SPACING, 3 * GRID_SPACING, 0, 0, sprite_guyForGame, 0);
+    mobj_create(MOBJ_STATIC, light.x, light.y, 0, 0, sprite_plant, 0);
 }
 
 #define key_pressed(key) state[key]
@@ -1229,7 +1229,7 @@ void render(void) {
                 float x = s->x1;
                 float y = s->y1;
                 for (int i = 0; i < SHOT_SPRITE_COUNT; i++) {
-                    add_sprite_proj(x, y, (GRID_SPACING / 2), SPRITE_SHOT);
+                    add_sprite_proj(x, y, (GRID_SPACING / 2), sprite_shot);
                     x += s->x_spr_incr;
                     y += s->y_spr_incr;
                 }

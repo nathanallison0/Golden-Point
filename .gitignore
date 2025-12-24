@@ -1,7 +1,7 @@
 *
 !/**/
 !*.*
-*.sh
+compRun*
 .vscode/
-*/.DS_Store
 .DS_Store
+realRaycast/sprites/
