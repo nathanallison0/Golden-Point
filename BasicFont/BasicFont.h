@@ -412,7 +412,7 @@ void BF_FillText(char *text, int font_size, int wrap_length, unsigned char font_
                         BF_char_x + (col * font_size),
                         BF_char_y + (row * font_size),
                         font_size, font_size,
-                        font_color_r, font_color_g, font_color_b
+                        font_color_r, font_color_g, font_color_b, 255
                     );
                 }
             }
@@ -432,7 +432,7 @@ void BF_FillText(char *text, int font_size, int wrap_length, unsigned char font_
 
     // Draw cursor
     if (draw_cursor) {
-        draw_rect(BF_char_x, BF_char_y, font_size * BF_CHAR_WIDTH, font_size * BF_CHAR_HEIGHT, font_color_r, font_color_g, font_color_b);
+        draw_rect(BF_char_x, BF_char_y, font_size * BF_CHAR_WIDTH, font_size * BF_CHAR_HEIGHT, font_color_r, font_color_g, font_color_b, 255);
     }
 }
 

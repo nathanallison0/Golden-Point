@@ -48,7 +48,7 @@ static void destroy_track_callback(void *data, MIX_Track *track) {
     tracks_to_destroy = realloc(tracks_to_destroy, num_tracks_to_destroy * sizeof(MIX_Track *));
     tracks_to_destroy[num_tracks_to_destroy - 1] = track;
 
-    // If the sound is a positional sound, destroy that as well
+    // If the sound is a positional sound, destroy that structure as well
     if (data) {
         pos_sound *p_sound = data;
         if (p_sound == pos_sound_head) {

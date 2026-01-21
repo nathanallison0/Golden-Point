@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-python3 scripts/src/pngToSprite.py $@
+./scripts/pngToImage.sh $1 -p ${@:2}

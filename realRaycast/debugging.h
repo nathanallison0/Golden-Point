@@ -47,7 +47,7 @@ typedef struct {
 
 Uint8 show_grid_crosshairs = FALSE;
 
-#define CHAR_VLS_LEN 11
+#define CHAR_VLS_LEN 13
 char_varlabel char_vls[CHAR_VLS_LEN] = {
     {"grid show crosshairs", &show_grid_crosshairs},
     {"grid cam follows player", &grid_follow_player},
@@ -59,14 +59,16 @@ char_varlabel char_vls[CHAR_VLS_LEN] = {
     {"grid casting",  &grid_casting},
     {"debug prr",  &debug_prr},
     {"show fps", &show_fps},
-    {"cap fps", &cap_fps}
+    {"cap fps", &cap_fps},
+    {"show weapon", &fp_show_weapon},
+    {"aa level", &aa_level}
 };
 
 #define FLT_VLS_LEN 6
 flt_varlabel flt_vls[FLT_VLS_LEN] = {
     {"player x", &player_x},
     {"player y", &player_y},
-    {"player z", &player_height},
+    {"player z", &player_z},
     {"player angle", &player_angle},
     {"zoom", &fp_scale},
     {"sensitivity", &player_sensitivity}
