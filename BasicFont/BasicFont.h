@@ -2,11 +2,11 @@
 #include <stdlib.h>
 #include "../../SDL/SDL3Start.h"
 
-#define BF_NUM_CHARS 47
+#define BF_NUM_CHARS 49
 #define BF_CHAR_WIDTH 5
 #define BF_CHAR_HEIGHT 5
 
-const static int BF_CHARS[BF_NUM_CHARS][BF_CHAR_HEIGHT][BF_CHAR_WIDTH] = {
+const char BF_CHARS[BF_NUM_CHARS][BF_CHAR_HEIGHT][BF_CHAR_WIDTH] = {
     { // A
         {0,1,1,1,0},
         {1,0,0,0,1},
@@ -335,10 +335,24 @@ const static int BF_CHARS[BF_NUM_CHARS][BF_CHAR_HEIGHT][BF_CHAR_WIDTH] = {
         {0,0,0,1,0},
         {0,0,0,1,0},
         {1,1,1,0,0}
+    },
+    { // dash (-)
+        {0,0,0,0,0},
+        {0,0,0,0,0},
+        {0,1,1,1,0},
+        {0,0,0,0,0},
+        {0,0,0,0,0}
+    },
+    { // comma (,)
+        {0,0,0,0,0},
+        {0,0,0,0,0},
+        {0,0,0,0,0},
+        {0,0,1,0,0},
+        {0,1,0,0,0}
     }
 };
 
-const char *BF_ALLCHARS = "abcdefghijklmnopqrstuvwxyz0123456789.?!>_:'[]()";
+const char *BF_ALLCHARS = "abcdefghijklmnopqrstuvwxyz0123456789.?!>_:'[]()-,";
 
 typedef struct {
     char lower;

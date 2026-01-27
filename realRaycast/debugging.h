@@ -7,14 +7,14 @@
 typedef unsigned char byte;
 
 struct temp_dgp {
-    int x;
-    int y;
+    float x;
+    float y;
     byte color_index;
 };
 
 struct fill_dgp {
-    int x;
-    int y;
+    float x;
+    float y;
     byte color_index;
     struct fill_dgp *next;
 };
@@ -25,8 +25,8 @@ typedef struct {
     byte color_index;
 } dgl;
 
-void add_temp_dgp(int x, int y, byte color_index, size_t *num_dgps, struct temp_dgp **list);
-void add_fill_dgp(int x, int y, byte color_index, int *num_dgps, int max_dgps, struct fill_dgp **head, struct fill_dgp **tail);
+void add_temp_dgp(float x, float y, byte color_index, size_t *num_dgps, struct temp_dgp **list);
+void add_fill_dgp(float x, float y, byte color_index, int *num_dgps, int max_dgps, struct fill_dgp **head, struct fill_dgp **tail);
 void add_dgl(int x1, int y1, int x2, int y2, byte color_index);
 #define temp_dgp(x, y, color_index) add_temp_dgp(x, y, color_index, &num_temp_dgps, &temp_dgp_list)
 #define fill_dgp(x, y, color_index) add_fill_dgp(x, y, color_index, &num_fill_dgps, max_fill_dgps, &fill_dgp_head, &fill_dgp_tail)
@@ -151,7 +151,7 @@ static void CMD_set(int num_args, char **args) {
             if (num_args > 2) {
                 DT_ConsolePrintln("Err expected from 0 to 2 arguments");
             } else {
-                DT_ConsolePrintf("Err no such variable '%s'\n", args[0]);
+                DT_ConsolePrintf("Err no such variable '%s'\nTo reference a variable with spaces, replace spaces with underscores\n", args[0]);
             }
         }
     }
@@ -317,7 +317,7 @@ struct temp_dgp *temp_dgp_list = NULL;
 dgl *dgl_list = NULL;
 size_t num_dgls = 0;
 
-void add_fill_dgp(int x, int y, byte color_index, int *num_dgps, int max_dgps, struct fill_dgp **head, struct fill_dgp **tail) {
+void add_fill_dgp(float x, float y, byte color_index, int *num_dgps, int max_dgps, struct fill_dgp **head, struct fill_dgp **tail) {
     struct fill_dgp *p = malloc(sizeof(*p));
     p->x = x;
     p->y = y;
@@ -340,7 +340,7 @@ void add_fill_dgp(int x, int y, byte color_index, int *num_dgps, int max_dgps, s
     }
 }
 
-void add_temp_dgp(int x, int y, byte color_index, size_t *num_dgps, struct temp_dgp **list) {
+void add_temp_dgp(float x, float y, byte color_index, size_t *num_dgps, struct temp_dgp **list) {
     (*num_dgps)++;
     *list = realloc(*list, sizeof(struct temp_dgp) * *num_dgps);
     struct temp_dgp *p = *list + (*num_dgps - 1);
@@ -393,7 +393,7 @@ char str_num(char *str, float *dest) {
     return TRUE;
 }
 
-char cond(char* msg) {
+char check(char* msg) {
     puts(msg);
     return TRUE;
 }

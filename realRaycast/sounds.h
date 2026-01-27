@@ -1,3 +1,12 @@
+#if __EMSCRIPTEN__
+#define init_sound()
+#define print_pos_sound(s)
+#define sound_clear_finished()
+#define sound_play_static(a, b)
+#define sound_update_pos_pan(a)
+#define sound_play_pos_static(a, b, c, d, e)
+#define sound_play_pos_mobj(a, b, c)
+#else
 #include <SDL3_mixer/SDL_mixer.h>
 #include <stdio.h>
 
@@ -104,7 +113,7 @@ void sound_update_pos_pan(pos_sound *s) {
         y = s->pos.obj->y;
     }
 
-    float rel_angle_to = get_angle_from_player(x, y) - (player_angle - (M_PI / 2));
+    float rel_angle_to = get_angle_from_player(x, y) - (player_angle - PI_2);
     float dist_to = point_dist(player_x, player_y, x, y);
 
     MIX_SetTrack3DPosition(s->track, &(MIX_Point3D) {
@@ -131,3 +140,4 @@ void sound_play_pos_mobj(MIX_Audio *audio, float gain, mobj *obj) {
     p_sound->pos.obj = obj;
     sound_update_pos_pan(p_sound);
 }
+#endif
