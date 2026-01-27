@@ -1,6 +1,6 @@
-## Raycasting Engine
+# Golden Point
 
-Uses the graphics library SDL3 with a raycasting algorithm to simulate a 3D space in a 2D plane. A demo of the project can be found [here](https://nathanallison0.github.io).
+A game engine using the graphics library SDL3 with a raycasting algorithm to simulate a 3D space on a 2D plane. A demo of the project can be found [here](https://nathanallison0.github.io).
 
 ## Features:
 - A two-dimensional map that can be traversed by the player in first person
