@@ -96,8 +96,10 @@ extra (
 
 #define ENEMY_RADIUS 20 //10
 #define ENEMY_HEALTH 100
+#define ENEMY_START_SPRITE sprite_boxShaded
+#define ENEMY_DEFEATED_SPRITE sprite_plant
 void enemy_init(float x, float y, float z, float angle) {
-    mobj *enemy = mobj_create(MOBJ_ENEMY, x, y, z, angle, ENEMY_RADIUS, sprite_boxShaded, MF_SHOOTABLE);
+    mobj *enemy = mobj_create(MOBJ_ENEMY, x, y, z, angle, ENEMY_RADIUS, ENEMY_START_SPRITE, MF_SHOOTABLE);
     __def_extra(enemy);
     extra->health = ENEMY_HEALTH;
     extra->neutral_angle = angle;

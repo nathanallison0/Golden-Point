@@ -235,6 +235,14 @@ float weapon_cycle_progress = 0;
 #define WEAPON_GRAPHIC_CYCLE_Y_DISP (WEAPON_GRAPHIC_CYCLE_DISP_FACTOR * 4)
 #define WEAPON_GRAPHIC_CYCLE_SPEED_FACTOR 0.0025f
 
+#define HEALTH_BAR_SCALE 4
+#define HEALTH_BAR_WIDTH (PLAYER_START_HEALTH * HEALTH_BAR_SCALE)
+#define HEALTH_BAR_X ((WINDOW_WIDTH - HEALTH_BAR_WIDTH) / 2)
+#define HEALTH_BAR_HEIGHT (5 * HEALTH_BAR_SCALE)
+#define HEALTH_BAR_Y (WINDOW_HEIGHT - HEALTH_BAR_HEIGHT - (HEALTH_BAR_HEIGHT / 2))
+#define HEALTH_BAR_BG C_RED
+#define HEALTH_BAR_FG C_GREEN
+
 #if __EMSCRIPTEN__
 #define WEAPON_SCALE 1
 #define WEAPON_POS_OFFSET_X 1.5f
@@ -244,17 +252,6 @@ float weapon_cycle_progress = 0;
 #define WEAPON_POS_OFFSET_X 2
 #define WEAPON_POS_OFFSET_Y 2.5f
 #endif
-
-void reset_player(void) {
-    player->x = PLAYER_START_X;
-    player->y = PLAYER_START_Y;
-    player->z = PLAYER_START_Z;
-    player_x_velocity = 0;
-    player_y_velocity = 0;
-    player->angle = PLAYER_START_ANGLE;
-    player_health = PLAYER_START_HEALTH;
-    weapon_cycle_progress = 0;
-}
 
 rgb grid_mobj_color = C_BLUE;
 
@@ -400,6 +397,28 @@ float get_angle_to_player(float x, float y) {
 #include "mobj.h"
 #include "sounds.h"
 #include "behavior.h"
+
+void reset(void) {
+    // Reset player
+    player->x = PLAYER_START_X;
+    player->y = PLAYER_START_Y;
+    player->z = PLAYER_START_Z;
+    player_x_velocity = 0;
+    player_y_velocity = 0;
+    player->angle = PLAYER_START_ANGLE;
+    player_health = PLAYER_START_HEALTH;
+    weapon_cycle_progress = 0;
+
+    // Reset enemies
+    for (mobj *o = mobj_head; o; o = o->next) {
+        if (o->type == MOBJ_ENEMY) {
+            __def_extra_var(enemy, o);
+            extra->health = ENEMY_HEALTH;
+            o->sprite_index = ENEMY_START_SPRITE;
+        }
+    }
+}
+
 #include "shot.h"
 
 void add_sprite_proj_a(float x, float y, float z, float angle_to, Uint16 sprite_num) {
@@ -608,7 +627,7 @@ void process_input(void) {
 
         if (state[SDL_SCANCODE_R]) {
             reset_grid_cam();
-            reset_player();
+            reset();
         }
 
         if (key_just_pressed(key(U)) && view == VIEW_FPS) {
@@ -1279,14 +1298,18 @@ void render(void) {
         }
         #endif
         
-        // Weapon graphic
         if (fp_show_weapon && view == VIEW_FPS) {
+            // Weapon graphic
             draw_image_scale(
                 image_weapon2ForGame,
                 (WINDOW_WIDTH - ((79 * WEAPON_SCALE) * WEAPON_POS_OFFSET_X)) + weapon_graphic_x,
                 (WINDOW_HEIGHT - ((142 * WEAPON_SCALE) / WEAPON_POS_OFFSET_Y)) - weapon_graphic_y,
                 WEAPON_SCALE
             );
+
+            // Health bar
+            draw_rect_rgb(HEALTH_BAR_X, HEALTH_BAR_Y, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT, HEALTH_BAR_BG);
+            draw_rect_rgb(HEALTH_BAR_X, HEALTH_BAR_Y, player_health * HEALTH_BAR_SCALE, HEALTH_BAR_HEIGHT, HEALTH_BAR_FG);
         }
     }
 

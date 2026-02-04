@@ -166,13 +166,13 @@ void shot_advance(shot *s) {
             if (extra->health > 0) {
                 extra->health -= SHOT_DAMAGE;
                 if (extra->health <= 0) {
-                    hit_mobj->sprite_index = sprite_plant;
+                    hit_mobj->sprite_index = ENEMY_DEFEATED_SPRITE;
                 }
             }
         } else if (hit_mobj == player) {
             player_health -= SHOT_DAMAGE;
             if (player_health <= 0) {
-                reset_player();
+                reset();
             }
         }
         return;
