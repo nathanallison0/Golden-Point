@@ -64,12 +64,8 @@ char_varlabel char_vls[CHAR_VLS_LEN] = {
     {"aa level", &aa_level}
 };
 
-#define FLT_VLS_LEN 6
+#define FLT_VLS_LEN 2
 flt_varlabel flt_vls[FLT_VLS_LEN] = {
-    {"player x", &player_x},
-    {"player y", &player_y},
-    {"player z", &player_z},
-    {"player angle", &player_angle},
     {"zoom", &fp_scale},
     {"sensitivity", &player_sensitivity}
 };
@@ -173,7 +169,7 @@ static void CMD_state(int num_args, char **args) {
         // Saving a state
         if (strcmp(args[0], "add") == 0) {
             if (num_args == 1) {
-                SST_AddState(player_x, player_y, player_angle);
+                SST_AddState(player->x, player->y, player->angle);
             } else if (num_args == 4) {
                 float nums[3];
                 int i = -1;
@@ -194,7 +190,7 @@ static void CMD_state(int num_args, char **args) {
             if (num_args == 2) {
                 float num;
                 if (str_num(args[1], &num)) {
-                    SST_LoadState(num, &player_x, &player_y, &player_angle);
+                    SST_LoadState(num, &player->x, &player->y, &player->angle);
                 } else {
                     DT_ConsolePrintf("Err cannot interpret '%s' as a number\n", args[1]);
                 }

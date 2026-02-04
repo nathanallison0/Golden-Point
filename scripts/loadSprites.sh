@@ -2,21 +2,12 @@
 
 set -e
 
-SPRITE_DIR="./realRaycast/graphics"
-OUTPUT="./realRaycast/spritesRaw.h"
-#OUTPUT=test.txt
-SEPARATOR=:
-SEPARATOR2=,
-ROT_SPRITE_FRAMES=8
-
-echo "sprite sprites[] = {" > $OUTPUT
-echo -e "\t#if !__VSCODE__" >> $OUTPUT
+echo "loading sprites at $1"
+echo "doing macros? $2"
 
 i=0
-loaded=0
-macros=""
 echo "num args: $#"
-for item in $@; do
+for item in ${@:3}; do
     echo "iter $i $item"
 
     # Get args as all items past the name
@@ -28,13 +19,16 @@ for item in $@; do
     name=${item:0:(( ${#item} - ${#args} - ${#SEPARATOR} ))}
     echo "name: $name"
 
-    # Add macro for sprite indexing
-    macros="${macros}#define sprite_${name} ${loaded}\n"
-
-    path=$SPRITE_DIR/$name
+    path=$1/$name
     echo "path $path"
 
-    # If is dir, load its images as a rotating sprite
+    # Add macro for sprite indexing
+    if [ $2 -eq 1 ] && [ ! -d "$path.anim" ]; then
+        sprite_macros="${sprite_macros}#define sprite_$name $loaded_sprites\n"
+        echo "added macro"
+    fi
+
+    # If is dir without .anim, load its images as a rotating sprite
     if [ -d "$path" ]; then
         # Separate two sets of arguments
         arg_set1=$args
@@ -52,31 +46,37 @@ for item in $@; do
         
         if [[ $arg_set2 == "undef" ]]; then
             # Call with first set only
-            ./scripts/pngsToSprites.sh $name "${arg_set1//$SEPARATOR2/ }" >> $OUTPUT
+            ./scripts/loadRotSprite.sh "$path" "${arg_set1//$SEPARATOR2/ }" >> $SPRITE_OUTPUT
         else
             # Call with both sets
-            ./scripts/pngsToSprites.sh $name "${arg_set1//$SEPARATOR2/ }" "${arg_set2//$SEPARATOR2/ }" >> $OUTPUT
+            ./scripts/loadRotSprite.sh "$path" "${arg_set1//$SEPARATOR2/ }" "${arg_set2//$SEPARATOR2/ }" >> $SPRITE_OUTPUT
         fi
-        loaded=$(( ${loaded} + ${ROT_SPRITE_FRAMES} ))
+        loaded_sprites=$(( ${loaded_sprites} + ${ROT_SPRITE_FRAMES} ))
     
+    # If dir is tagged as animation, load as so
+    elif [ -d "$path.anim" ]; then
+        echo "animation"
+
+        # Remember vars because of recursive source vars
+        prev_i=$i
+        source ./scripts/loadAnim.sh "$path.anim" ${args//$SEPARATOR2/ }
+        i=$prev_i
+        ((loaded_anims++))
+
     # Otherwise, load single image
     elif [ -e "$path.png" ]; then
         echo "image"
-        ./scripts/pngToSprite.sh $path.png "${args//$SEPARATOR2/ }" >> $OUTPUT
-        ((loaded++))
+        source ./scripts/pngToSprite.sh "$path.png" "${args//$SEPARATOR2/ }" >> $SPRITE_OUTPUT
+        ((loaded_sprites++))
 
     else
         echo "error: $path does not exist"
         exit 1
     fi
 
-    if [ $(( $i + 1 )) -lt "$#" ]; then
-        echo , >> $OUTPUT
+    if [ $(( $i + 1 )) -lt $(( $# - 2 )) ]; then
+        echo , >> $SPRITE_OUTPUT
         echo "added comma"
     fi
     ((i++))
 done
-
-echo -e "\n\t#endif" >> $OUTPUT
-echo "};" >> $OUTPUT
-echo -e $macros >> $OUTPUT

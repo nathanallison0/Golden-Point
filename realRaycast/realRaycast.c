@@ -55,6 +55,7 @@ Uint8 aa_level = 1;
 #if SCHOOL_APPROPRIATE
 #define sprite_shot sprite_laserShot
 #define image_weapon2ForGame image_laserForGame
+#define sprite_guyForGame sprite_guyForGameLaser
 #endif
 
 #define WALL_TEXTURES TRUE
@@ -66,6 +67,23 @@ Uint8 aa_level = 1;
 #define fix_angle_180(angle) { if (angle < -PI) angle += PI * 2; else if (angle >= PI) angle -= PI * 2; }
 
 #define range(left, sym1, var, sym2, right) (left sym1 var && var sym2 right)
+
+#include "structs.h"
+
+typedef struct {
+    float x, y;
+    char left, right;
+} mouse_s;
+
+// User Input Variables
+int shift = FALSE;
+mouse_s mouse = {0, 0, 0, 0};
+mouse_s prev_mouse;
+char horizontal_input;
+char vertical_input;
+char rotation_input = 0;
+
+#define click(side) (mouse.side && !prev_mouse.side)
 
 // View modes
 enum {
@@ -155,17 +173,18 @@ Uint8 grid_casting = FALSE;
 Uint8 debug_prr = FALSE;
 
 // Player
-float player_x;
-float player_y;
-float player_z;
-float player_z_base;
+mobj *player;
+#define PLAYER_START_X (GRID_SPACING * 4)
+#define PLAYER_START_Y (GRID_SPACING * 4)
+#define PLAYER_START_Z 40
+float player_z_elev;
 #define PLAYER_Z_BOB_DISP -2.5f
 #define PLAYER_Z_BOB_SPEED_FACTOR 2
-int player_radius = 10;
+#define PLAYER_START_ANGLE 0
+#define PLAYER_RADIUS 10
 float player_x_velocity;
 float player_y_velocity;
 int player_max_velocity = 200;
-float player_angle;
 float fov = PI / 3;
 int player_movement_accel = 800;
 int player_movement_decel = 800;
@@ -175,6 +194,8 @@ float player_sensitivity = 0.15f;
 #else
 float player_sensitivity = 0.05f;
 #endif
+#define PLAYER_START_HEALTH 100
+int player_health = PLAYER_START_HEALTH;
 
 // Player interactions
 #define KEY_OPEN_DOOR SDL_SCANCODE_E
@@ -182,7 +203,7 @@ float player_sensitivity = 0.05f;
 #define DOOR_SPEED 100
 
 // Player grid visual
-int grid_player_pointer_dist = 45;
+int grid_player_pointer_dist = 10;
 rgb grid_player_fill = {255, 50, 50};
 Uint8 grid_follow_player = TRUE;
 Uint8 show_player_vision = FALSE;
@@ -214,16 +235,26 @@ float weapon_cycle_progress = 0;
 #define WEAPON_GRAPHIC_CYCLE_Y_DISP (WEAPON_GRAPHIC_CYCLE_DISP_FACTOR * 4)
 #define WEAPON_GRAPHIC_CYCLE_SPEED_FACTOR 0.0025f
 
-// User Input Variables
-int shift = FALSE;
-int left_mouse_down = FALSE;
-float mouse_x;
-float mouse_y;
-float prev_mouse_x = -1;
-float prev_mouse_y = -1;
-char horizontal_input;
-char vertical_input;
-char rotation_input = 0;
+#if __EMSCRIPTEN__
+#define WEAPON_SCALE 1
+#define WEAPON_POS_OFFSET_X 1.5f
+#define WEAPON_POS_OFFSET_Y 3
+#else
+#define WEAPON_SCALE 3
+#define WEAPON_POS_OFFSET_X 2
+#define WEAPON_POS_OFFSET_Y 2.5f
+#endif
+
+void reset_player(void) {
+    player->x = PLAYER_START_X;
+    player->y = PLAYER_START_Y;
+    player->z = PLAYER_START_Z;
+    player_x_velocity = 0;
+    player_y_velocity = 0;
+    player->angle = PLAYER_START_ANGLE;
+    player_health = PLAYER_START_HEALTH;
+    weapon_cycle_progress = 0;
+}
 
 rgb grid_mobj_color = C_BLUE;
 
@@ -284,7 +315,7 @@ float point_dist(float x1, float y1, float x2, float y2) {
 }
 
 float fp_dist(float x, float y, float angle_to) {
-    float offset = fmodf((player_angle - angle_to) + (PI * 2), PI * 2);
+    float offset = fmodf((player->angle - angle_to) + (PI * 2), PI * 2);
     if (offset > PI) {
         offset -= PI * 2;
     }
@@ -294,17 +325,17 @@ float fp_dist(float x, float y, float angle_to) {
         offset -= PI_2;
     }
 
-    return point_dist(x, y, player_x, player_y) * cosf(offset);
+    return point_dist(x, y, player->x, player->y) * cosf(offset);
 }
 
 float angle_to_screen_x(float angle_to) {
-    float relative_angle = angle_to - (player_angle - (fov / 2));
+    float relative_angle = angle_to - (player->angle - (fov / 2));
     fix_angle_360(relative_angle);
     return (WINDOW_WIDTH / fov) * relative_angle;
 }
 
 float player_height_y_offset(float height) {
-    return -((height / 2) - ((player_z / GRID_SPACING) * height));
+    return -((height / 2) - ((player_z_elev / GRID_SPACING) * height));
 }
 
 float project(float distance) {
@@ -358,16 +389,17 @@ float get_angle_to(float x1, float y1, float x2, float y2) {
 }
 
 float get_angle_from_player(float x, float y) {
-    return get_angle_to(player_x, player_y, x, y);
+    return get_angle_to(player->x, player->y, x, y);
 }
 
 float get_angle_to_player(float x, float y) {
-    return get_angle_to(x, y, player_x, player_y);
+    return get_angle_to(x, y, player->x, player->y);
 }
 
-#include "mobj.h"
 #include "raycasts.h"
+#include "mobj.h"
 #include "sounds.h"
+#include "behavior.h"
 #include "shot.h"
 
 void add_sprite_proj_a(float x, float y, float z, float angle_to, Uint16 sprite_num) {
@@ -427,16 +459,6 @@ void reset_grid_cam(void) {
     grid_cam_zoom = 1;
 }
 
-void reset_player(void) {
-    player_x = GRID_SPACING * 4;
-    player_y = GRID_SPACING * 4;
-    player_z_base = 40;
-    player_x_velocity = 0;
-    player_y_velocity = 0;
-    player_angle = 0;
-    weapon_cycle_progress = 0;
-}
-
 // Zoom grid
 void zoom_grid_cam(float zoom) {
     grid_cam_zoom += zoom;
@@ -458,27 +480,27 @@ void zoom_grid_cam_center(float zoom) {
 
 // Player control
 void rotate_player(float angle) {
-    player_angle += angle;
-    while (player_angle < -PI) {
-        player_angle += PI * 2;
+    player->angle += angle;
+    while (player->angle < -PI) {
+        player->angle += PI * 2;
     }
-    while (player_angle >= PI) {
-        player_angle -= (PI * 2);
+    while (player->angle >= PI) {
+        player->angle -= (PI * 2);
     }
 }
 
 void push_player_forward(float force) {
     if (force != 0) {
-        player_x_velocity += cosf(player_angle) * force;
-        player_y_velocity += sinf(player_angle) * force;
+        player_x_velocity += cosf(player->angle) * force;
+        player_y_velocity += sinf(player->angle) * force;
     }
 }
 
 void push_player_right(float force) {
     if (force != 0) {
-        player_angle += PI_2;
+        player->angle += PI_2;
         push_player_forward(force);
-        player_angle -= PI_2;
+        player->angle -= PI_2;
     }
 }
 
@@ -507,15 +529,15 @@ void setup(void) {
     fp_brightness_appl = FP_BRIGHTNESS;
 
     // Set player start pos
-    reset_player();
     reset_grid_cam();
     calc_grid_cam_center();
     enter_fps_view();
     
-    mobj_create(MOBJ_NOTYPE, 983, 345, 0, 0, GRID_SPACING / 2, sprite_plant, 0);
-
-    mobj_create(MOBJ_TESTER, 465, 217, 0, 0, GRID_SPACING / 2, sprite_boxShaded, 0);
-    mobj_create(MOBJ_NOTYPE, 4 * GRID_SPACING, 3 * GRID_SPACING, GRID_SPACING / 4, 0, GRID_SPACING / 2, sprite_boxShaded, 0);
+    create_assign_player();
+    enemy_init(983, 345, 0, 0);
+    enemy_init(681, 1269, 0, 0);
+    enemy_init(1143, 981, GRID_SPACING / 4, 0);
+    enemy_init(1139, 163, 0, 0);
 }
 
 #define key_pressed(key) state[key]
@@ -524,9 +546,14 @@ bool prev_state[SDL_SCANCODE_COUNT];
 #define key_just_pressed(scancode) (state[scancode] && !prev_state[scancode])
 
 void process_input(void) {
+    vertical_input = 0;
+    horizontal_input = 0;
+    rotation_input = 0;
+    prev_mouse = mouse;
+
     // Reset mouse pos to center if we are in mouse control cam mode
     if (mouse_focused() && !fps_free_mouse) {
-        mouse_x = WINDOW_WIDTH / 2;
+        mouse.x = WINDOW_WIDTH / 2;
     }
 
     SDL_Event event;
@@ -537,24 +564,24 @@ void process_input(void) {
                 game_is_running = FALSE;
                 break;
             case SDL_EVENT_MOUSE_BUTTON_UP:
-                if (event.button.button == SDL_BUTTON_LEFT) left_mouse_down = FALSE;
+                if (event.button.button == SDL_BUTTON_LEFT) mouse.left = FALSE;
                 break;
             case SDL_EVENT_MOUSE_BUTTON_DOWN:
-                if (event.button.button == SDL_BUTTON_LEFT) left_mouse_down = TRUE;
+                if (event.button.button == SDL_BUTTON_LEFT) mouse.left = TRUE;
                 break;
             case SDL_EVENT_MOUSE_WHEEL:
                 zoom_grid_cam_center(-event.wheel.y * grid_cam_zoom_incr);
                 break;
             case SDL_EVENT_MOUSE_MOTION:
-                mouse_x = event.motion.x;
-                mouse_y = event.motion.y;
+                mouse.x = event.motion.x;
+                mouse.y = event.motion.y;
 
                 grid_mouse_x = grid_cam_x + (event.motion.x / grid_cam_zoom);
                 grid_mouse_y = grid_cam_y + (event.motion.y / grid_cam_zoom);
 
-                if (prev_mouse_x != -1 && prev_mouse_y != -1 && left_mouse_down) {
-                    grid_cam_x -= (mouse_x - prev_mouse_x) / grid_cam_zoom;
-                    grid_cam_y -= (mouse_y - prev_mouse_y) / grid_cam_zoom;
+                if (prev_mouse.x != -1 && prev_mouse.y != -1 && mouse.left) {
+                    grid_cam_x -= (mouse.x - prev_mouse.x) / grid_cam_zoom;
+                    grid_cam_y -= (mouse.y - prev_mouse.y) / grid_cam_zoom;
                 }
                 break;
             case SDL_EVENT_KEY_DOWN:
@@ -598,11 +625,11 @@ void process_input(void) {
         if (state[SDL_SCANCODE_A]) horizontal_input--;
         if (state[SDL_SCANCODE_D]) horizontal_input++;
 
-        if (state[SDL_SCANCODE_UP]) player_z_base++;
-        if (state[SDL_SCANCODE_DOWN]) player_z_base--;
+        if (state[SDL_SCANCODE_UP]) player->z++;
+        if (state[SDL_SCANCODE_DOWN]) player->z--;
 
-        if (player_z_base < 0) player_z_base = 0;
-        else if (player_z_base > GRID_SPACING) player_z_base = GRID_SPACING;
+        if (player->z < 0) player->z = 0;
+        else if (player->z > GRID_SPACING) player->z = GRID_SPACING;
 
         if (key_just_pressed(key(EQUALS))) {
             aa_level++;
@@ -612,13 +639,13 @@ void process_input(void) {
         }
         
         // Shots
-        if (key_just_pressed(KEY_SHOT)) {
+        if (view == VIEW_FPS && click(left)) {
             shot_create(
-                player_x + (cosf(player_angle + PI_2) * 10),
-                player_y + (sinf(player_angle + PI_2) * 10),
-                player_z - 10,
-                SHOT_LENGTH,
-                player_angle
+                player->x + (cosf(player->angle + PI_2) * SHOT_START_DISP),
+                player->y + (sinf(player->angle + PI_2) * SHOT_START_DISP),
+                player_z_elev - SHOT_START_DISP,
+                player->angle,
+                player
             );
             sound_play_static(sound_effect, 0.25f);
         }
@@ -626,8 +653,8 @@ void process_input(void) {
         // Door opening and closing
         if (key_just_pressed(KEY_OPEN_DOOR)) {
             raycast_info cast;
-            raycast(player_x, player_y, player_angle, &cast, NULL, NULL);
-            if (cast.door_hit.door && point_dist(player_x, player_y, cast.door_hit.x, cast.door_hit.y) <= OPEN_DOOR_DIST) {
+            raycast(player->x, player->y, player->angle, &cast, NULL, NULL);
+            if (cast.door_hit.door && point_dist(player->x, player->y, cast.door_hit.x, cast.door_hit.y) <= OPEN_DOOR_DIST) {
                 door *door = cast.door_hit.door;
                 // If moving, reverse direction
                 if (door->flags & DOORF_MOVING) {
@@ -688,12 +715,19 @@ void update(void) {
     last_frame_time = SDL_GetTicks();
 
 
-    // Perform mobj behavior
+    // Perform mobj behavior and animation
     mobj *m_next;
     for (mobj *o = mobj_head; o; o = m_next) {
         m_next = o->next;
         if (mobj_behaviors[o->type]) {
             mobj_behaviors[o->type](o);
+        }
+    }
+
+    for (mobj *o = mobj_head; o; o = m_next) {
+        m_next = o->next;
+        if (o->animation) {
+            anim_advance(o);
         }
     }
 
@@ -718,7 +752,7 @@ void update(void) {
     push_player_right(player_movement_accel * horizontal_input * delta_time);
 
     if (view == VIEW_FPS && !fps_free_mouse) {
-        rotate_player((mouse_x - (WINDOW_WIDTH / 2)) * player_sensitivity * delta_time);
+        rotate_player((mouse.x - (WINDOW_WIDTH / 2)) * player_sensitivity * delta_time);
         // Reset mouse to center of screen
         SDL_WarpMouseInWindow(window, WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
     } else {
@@ -774,15 +808,15 @@ void update(void) {
     }
 
     // Wall collisions
-    int northeast_collision = get_map_coords(player_x + player_radius, player_y - player_radius);
-    int southeast_collision = get_map_coords(player_x + player_radius, player_y + player_radius);
-    int southwest_collision = get_map_coords(player_x - player_radius, player_y + player_radius);
-    int northwest_collision = get_map_coords(player_x - player_radius, player_y - player_radius);
+    int northeast_collision = get_map_coords(player->x + player->radius, player->y - player->radius);
+    int southeast_collision = get_map_coords(player->x + player->radius, player->y + player->radius);
+    int southwest_collision = get_map_coords(player->x - player->radius, player->y + player->radius);
+    int northwest_collision = get_map_coords(player->x - player->radius, player->y - player->radius);
 
-    #define push_left() player_x = ((((int) player_x + player_radius) / GRID_SPACING) * GRID_SPACING) - player_radius/*; printf("prev_player_x - player_x = %f\n", prev_player_x - player_x); player_y_velocity -= (prev_player_x - player_x) / tanf(player_velocity_angle)*/
-    #define push_down() player_y = (((((int) player_y - player_radius) / GRID_SPACING) + 1) * GRID_SPACING) + player_radius
-    #define push_right() player_x = (((((int) player_x - player_radius) / GRID_SPACING) + 1) * GRID_SPACING) + player_radius
-    #define push_up() player_y = ((((int) player_y + player_radius) / GRID_SPACING) * GRID_SPACING) - player_radius
+    #define push_left() player->x = ((((int) player->x + player->radius) / GRID_SPACING) * GRID_SPACING) - player->radius/*; printf("prev_player_x - player->x = %f\n", prev_player_x - player->x); player_y_velocity -= (prev_player_x - player->x) / tanf(player_velocity_angle)*/
+    #define push_down() player->y = (((((int) player->y - player->radius) / GRID_SPACING) + 1) * GRID_SPACING) + player->radius
+    #define push_right() player->x = (((((int) player->x - player->radius) / GRID_SPACING) + 1) * GRID_SPACING) + player->radius
+    #define push_up() player->y = ((((int) player->y + player->radius) / GRID_SPACING) * GRID_SPACING) - player->radius
 
     #define push_left_wall() push_left(); player_x_velocity = 0
     #define push_down_wall() push_down(); player_y_velocity = 0
@@ -798,8 +832,8 @@ void update(void) {
                 push_down_wall();
             }
         } else {
-            int overlapX = GRID_SPACING - (((int) player_x + player_radius) % GRID_SPACING);
-            int overlapY = ((int) player_y - player_radius) % GRID_SPACING;
+            int overlapX = GRID_SPACING - (((int) player->x + player->radius) % GRID_SPACING);
+            int overlapY = ((int) player->y - player->radius) % GRID_SPACING;
             if (overlapX > overlapY && player_x_velocity >= 0) {
                 push_left_wall();
             } else {
@@ -815,8 +849,8 @@ void update(void) {
                 push_up_wall();
             }
         } else {
-            int overlapX = GRID_SPACING - (((int) player_x - player_radius) % GRID_SPACING);
-            int overlapY = ((int) player_y + player_radius) % GRID_SPACING;
+            int overlapX = GRID_SPACING - (((int) player->x - player->radius) % GRID_SPACING);
+            int overlapY = ((int) player->y + player->radius) % GRID_SPACING;
             if (overlapX < overlapY) {
                 push_right_wall();
             } else if (player_y_velocity >= 0) {
@@ -832,8 +866,8 @@ void update(void) {
                 push_right_wall();
             }
         } else {
-            int overlapX = GRID_SPACING - (((int) player_x - player_radius) % GRID_SPACING);
-            int overlapY = GRID_SPACING - (((int) player_y - player_radius) % GRID_SPACING);
+            int overlapX = GRID_SPACING - (((int) player->x - player->radius) % GRID_SPACING);
+            int overlapY = GRID_SPACING - (((int) player->y - player->radius) % GRID_SPACING);
             if (overlapX < overlapY) {
                 push_right_wall();
             } else {
@@ -850,8 +884,8 @@ void update(void) {
                 push_left_wall();
             }
         } else { 
-            int overlapX = ((int) player_x + player_radius) % GRID_SPACING;
-            int overlapY = ((int) player_y + player_radius) % GRID_SPACING;
+            int overlapX = ((int) player->x + player->radius) % GRID_SPACING;
+            int overlapY = ((int) player->y + player->radius) % GRID_SPACING;
             if (overlapX < overlapY && player_x_velocity >= 0) {
                 push_left_wall();
             } else if (player_y_velocity >= 0) {
@@ -861,8 +895,8 @@ void update(void) {
     }
 
     // Move player by velocity
-    player_x += player_x_velocity * delta_time;
-    player_y += player_y_velocity * delta_time;
+    player->x += player_x_velocity * delta_time;
+    player->y += player_y_velocity * delta_time;
 
     // Move shots
     shot *next;
@@ -871,20 +905,13 @@ void update(void) {
         shot_advance(s);
     }
 
-    // Count shots
-    /* int shot_count = 0;
-    for (shot *s = shot_head; s; s = s->next) {
-        shot_count++;
-    }
-    debug_print(shot_count, "%d"); */
-
     if (show_player_trail) {
-        fill_dgp(player_x, player_y, DG_YELLOW);
+        fill_dgp(player->x, player->y, DG_YELLOW);
     }
 
     if (grid_follow_player) {
-        grid_cam_x = player_x - ((WINDOW_WIDTH / 2) / grid_cam_zoom);
-        grid_cam_y = player_y - ((WINDOW_HEIGHT / 2) / grid_cam_zoom);
+        grid_cam_x = player->x - ((WINDOW_WIDTH / 2) / grid_cam_zoom);
+        grid_cam_y = player->y - ((WINDOW_HEIGHT / 2) / grid_cam_zoom);
     }
 
     // Rotate all objects
@@ -912,11 +939,6 @@ void update(void) {
         weapon_cycle_progress -= WEAPON_GRAPHIC_CYCLE_LENGTH;
     }
 
-    vertical_input = 0;
-    horizontal_input = 0;
-    rotation_input = 0;
-    prev_mouse_x = mouse_x;
-    prev_mouse_y = mouse_y;
     frames++;
 }
 
@@ -936,11 +958,11 @@ void render(void) {
         int weapon_graphic_y = roundf(sinf(weapon_graphic_frames_radians * 2) * WEAPON_GRAPHIC_CYCLE_Y_DISP);
 
         // Update player height bob
-        player_z = player_z_base + (sinf(weapon_graphic_frames_radians * PLAYER_Z_BOB_SPEED_FACTOR) * PLAYER_Z_BOB_DISP);
-        if (player_z < 0) {
-            player_z = 0;
-        } else if (player_z > GRID_SPACING) {
-            player_z = GRID_SPACING;
+        player_z_elev = player->z + (sinf(weapon_graphic_frames_radians * PLAYER_Z_BOB_SPEED_FACTOR) * PLAYER_Z_BOB_DISP);
+        if (player_z_elev < 0) {
+            player_z_elev = 0;
+        } else if (player_z_elev > GRID_SPACING) {
+            player_z_elev = GRID_SPACING;
         }
 
         // Offset by half a radian pixel so that raycast goes up the center of the pixel col
@@ -951,7 +973,7 @@ void render(void) {
         for (int ray_i = 0; ray_i < WINDOW_WIDTH; ray_i++) {
             // Calculate ray angle
             relative_ray_angle += radians_per_pixel;
-            float ray_angle = player_angle + relative_ray_angle;
+            float ray_angle = player->angle + relative_ray_angle;
             fix_angle_180(ray_angle);
 
             if (sky_start == -1) {
@@ -966,7 +988,7 @@ void render(void) {
 
             int wall_texture_index, wall_texture_x;
             raycast_info cast;
-            xy hit = raycast(player_x, player_y, ray_angle, &cast, &wall_texture_index, &wall_texture_x);
+            xy hit = raycast(player->x, player->y, ray_angle, &cast, &wall_texture_index, &wall_texture_x);
 
             float aa_worlspace_incr = WORLDSPACE / (aa_level + 1);
 
@@ -1024,7 +1046,7 @@ void render(void) {
                     int end_floor = roundf(WINDOW_HEIGHT - (start_wall + wall_height));
                     int end_draw = end_floor > end_ceiling ? end_floor : end_ceiling;
 
-                    float ceil_dist_factor = (GRID_SPACING - player_z) / player_z;
+                    float ceil_dist_factor = (GRID_SPACING - player_z_elev) / player_z_elev;
                     float pixel_y_worldspace = WORLDSPACE / 2;
                     for (int pixel_y = 0; pixel_y < end_draw; pixel_y++) {
                         // Optimization possible:
@@ -1044,15 +1066,15 @@ void render(void) {
                             if (calc_dist) {
                                 // If we have not calculated this distance yet, do so and store
                                 floor_side_dists = realloc(floor_side_dists, ++floor_side_dists_len * sizeof(float));
-                                floor_side_dists[pixel_y + i] = (player_z / ((GRID_SPACING / 2) - (pixel_y_worldspace + (i * aa_worlspace_incr)))) * fp_scale;
+                                floor_side_dists[pixel_y + i] = (player_z_elev / ((GRID_SPACING / 2) - (pixel_y_worldspace + (i * aa_worlspace_incr)))) * fp_scale;
                             }
                             float floor_side_dist = floor_side_dists[pixel_y + i];
 
                             if (pixel_y < end_floor) {
                                 float straight_dist = floor_side_dist / rel_cos;
                                 
-                                float point_x = (angle_cos * straight_dist) + player_x;
-                                float point_y = (angle_sin * straight_dist) + player_y;
+                                float point_x = (angle_cos * straight_dist) + player->x;
+                                float point_y = (angle_sin * straight_dist) + player->y;
 
                                 Uint8 texture_num = floor_textures[(int) point_y / GRID_SPACING][(int) point_x / GRID_SPACING];
                                 
@@ -1098,8 +1120,8 @@ void render(void) {
                                 float ceil_side_dist = floor_side_dist * ceil_dist_factor;
                                 float straight_dist = ceil_side_dist / rel_cos;
 
-                                float point_x = (angle_cos * straight_dist) + player_x;
-                                float point_y = (angle_sin * straight_dist) + player_y;
+                                float point_x = (angle_cos * straight_dist) + player->x;
+                                float point_y = (angle_sin * straight_dist) + player->y;
 
                                 Uint8 texture_num = ceiling_textures[(int) point_y / GRID_SPACING][(int) point_x / GRID_SPACING];
                                 
@@ -1259,15 +1281,6 @@ void render(void) {
         
         // Weapon graphic
         if (fp_show_weapon && view == VIEW_FPS) {
-            #if __EMSCRIPTEN__
-            #define WEAPON_SCALE 1
-            #define WEAPON_POS_OFFSET_X 1.5f
-            #define WEAPON_POS_OFFSET_Y 3
-            #else
-            #define WEAPON_SCALE 3
-            #define WEAPON_POS_OFFSET_X 2
-            #define WEAPON_POS_OFFSET_Y 2
-            #endif
             draw_image_scale(
                 image_weapon2ForGame,
                 (WINDOW_WIDTH - ((79 * WEAPON_SCALE) * WEAPON_POS_OFFSET_X)) + weapon_graphic_x,
@@ -1367,13 +1380,13 @@ void render(void) {
 
         // Player direction pointer
         g_draw_scale_point_rgb(
-            player_x + cosf(player_angle) * grid_player_pointer_dist,
-            player_y + sinf(player_angle) * grid_player_pointer_dist,
-            player_radius / 2.0f,
+            player->x + cosf(player->angle) * grid_player_pointer_dist,
+            player->y + sinf(player->angle) * grid_player_pointer_dist,
+            player->radius / 2.0f,
             grid_player_fill
         );
         // Player
-        g_draw_scale_point_rgb(player_x, player_y, player_radius, grid_player_fill);
+        g_draw_scale_point_rgb(player->x, player->y, player->radius, grid_player_fill);
 
         // Temporary debug grid points
         for (size_t i = 0; i < num_temp_dgps; i++) {
@@ -1392,10 +1405,10 @@ void render(void) {
             // Test raycast_to
             raycast_info v;
             float angle = get_angle_from_player(grid_mouse_x, grid_mouse_y);
-            ray_hit result = raycast_to_x(player_x, player_y, grid_mouse_x, angle, &v);
+            ray_hit result = raycast_to_x(player->x, player->y, grid_mouse_x, angle, &v);
 
             if (result == RAY_NOHIT) {
-                draw_point_frgb(mouse_x, mouse_y, 5, C_ORANGE);
+                draw_point_frgb(mouse.x, mouse.y, 5, C_ORANGE);
             } else if (result == RAY_HORIZHIT) {
                 g_draw_point_rgb(v.c_hx, v.c_hy * GRID_SPACING, 5, C_RED);
             } else {
@@ -1405,7 +1418,7 @@ void render(void) {
             // On-screen mouse coords
             char *coords_text;
             asprintf(&coords_text, "(%d, %d) %s", (int) grid_mouse_x, (int) grid_mouse_y, get_map_coords(grid_mouse_x, grid_mouse_y) ? "true" : "false");
-            BF_DrawTextRgb(coords_text, mouse_x, mouse_y, 3, -1, C_RED, FALSE);
+            BF_DrawTextRgb(coords_text, mouse.x, mouse.y, 3, -1, C_RED, FALSE);
             free(coords_text);
         }
     } else if (view == VIEW_TERMINAL) { // Terminal view

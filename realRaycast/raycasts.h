@@ -301,23 +301,27 @@ enum {
 };
 typedef Uint8 ray_hit;
 
-ray_hit raycast_to_x(float x1, float y1, float x2, float angle, raycast_info *v) {
-    float y2 = y1 + (tanf(angle) * (x2 - x1));
+#define RAY_SUCCESS 0
+
+int raycast_get_x_to(float x, raycast_info *v) {
+    if (v->quadrant == 1 || v->quadrant == 4) {
+        return ceilf(x / GRID_SPACING);
+    }
+    return (int) (x / GRID_SPACING);
+}
+
+int raycast_get_y_to(float y, raycast_info *v) {
+    if (v->quadrant == 1 || v->quadrant == 2) {
+        return ceilf(y / GRID_SPACING);
+    }
+    return (int) (y / GRID_SPACING);
+}
+
+ray_hit raycast_to(float x1, float y1, float x2, float y2, float angle, raycast_info *v) {
     raycast_vars(x1, y1, angle, v);
 
-    int x_to;
-    if (v->quadrant == 1 || v->quadrant == 4) {
-        x_to = ceilf(x2 / GRID_SPACING);
-    } else {
-        x_to = (int) (x2 / GRID_SPACING);
-    }
-
-    int y_to;
-    if (v->quadrant == 1 || v->quadrant == 2) {
-        y_to = ceilf(y2 / GRID_SPACING);
-    } else {
-        y_to = (int) (y2 / GRID_SPACING);
-    }
+    int x_to = raycast_get_x_to(x2, v);
+    int y_to = raycast_get_y_to(y2, v);
 
     Uint8 horiz_success = raycast_to_h(y_to, v);
     Uint8 vert_success = raycast_to_v(x_to, v);
@@ -338,4 +342,13 @@ ray_hit raycast_to_x(float x1, float y1, float x2, float angle, raycast_info *v)
         return RAY_VERTHIT;
     }
     return RAY_HORIZHIT;
+}
+
+ray_hit raycast_to_x(float x1, float y1, float x2, float angle, raycast_info *v) {
+    float y2 = y1 + (tanf(angle) * (x2 - x1));
+    return raycast_to(x1, y1, x2, y2, angle, v);
+}
+
+ray_hit raycast_to_mobj(mobj *start, mobj *end, raycast_info *v) {
+    return raycast_to(start->x, start->y, end->x, end->y, get_angle_to(start->x, start->y, end->x, end->y), v);
 }
