@@ -1,6 +1,6 @@
 #include "anim.h"
 
-Uint8 mobj_extra_sizes[NUM_MOBJ_TYPES];
+unsigned long mobj_extra_sizes[NUM_MOBJ_TYPES];
 
 __doubly_linked_list_creator_add__(
     mobj,

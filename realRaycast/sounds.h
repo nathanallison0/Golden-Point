@@ -1,4 +1,5 @@
 #if __EMSCRIPTEN__
+#define import_sounds()
 #define init_sound()
 #define print_pos_sound(s)
 #define sound_clear_finished()
@@ -9,17 +10,51 @@
 #else
 #include <SDL3_mixer/SDL_mixer.h>
 #include <stdio.h>
+#include <dirent.h>
 
 static MIX_Mixer *audio_mixer;
 static MIX_Track **tracks_to_destroy = NULL;
-static Uint8 num_tracks_to_destroy = 0;
+static int num_tracks_to_destroy = 0;
 
-MIX_Audio *sound_effect;
+MIX_Audio **sounds;
+int num_sounds = 0;
+#define SOUND_DIR "./sounds"
+
+enum {
+    sound_laser,
+    sound_door
+};
+
+void import_sounds(void) {
+    DIR *sound_dir = opendir(SOUND_DIR);
+
+    if (sound_dir) {
+        struct dirent *entry;
+        while ((entry = readdir(sound_dir))) {
+            // Don't handle . and ..
+            if (entry->d_type != DT_DIR) {
+                printf("loading sound %s\n", entry->d_name);
+                num_sounds++;
+                sounds = realloc(sounds, num_sounds * sizeof(MIX_Audio *));
+
+                // Construct rel path to file
+                char *path;
+                asprintf(&path, SOUND_DIR "/%s", entry->d_name);
+                printf("rel path: %s\n", path);
+
+                // Load sound
+                sounds[num_sounds - 1] = MIX_LoadAudio(audio_mixer, path, false);
+                free(path);
+            }
+        }
+        closedir(sound_dir);
+    } else {
+        fprintf(stderr, "Could not open sound dir: '" SOUND_DIR "'\n");
+    }
+}
 
 #define POS_SOUND_STATIC 0
 #define POS_SOUND_MOBJ 1
-
-#define MAX_SOUND_RADIUS (GRID_SPACING * 20)
 
 __doubly_linked_list_init__(
     pos_sound,
@@ -33,7 +68,7 @@ __doubly_linked_list_init__(
                 float y;
                 float z;
             } coords;
-        } pos
+        } pos;
 )
 
 __doubly_linked_list_head__(pos_sound)
@@ -75,6 +110,7 @@ __doubly_linked_list_creator_add__(
 void init_sound(void) {
     MIX_Init();
     audio_mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, NULL);
+    import_sounds();
 }
 
 void print_pos_sound(pos_sound *s) {
@@ -91,20 +127,9 @@ void sound_clear_finished(void) {
     num_tracks_to_destroy = 0;
 }
 
-void sound_play_static(MIX_Audio *audio, float gain) {
-    create_singleuse_track(audio, gain, NULL);
+void sound_play_static(int sound_index, float gain) {
+    create_singleuse_track(sounds[sound_index], gain, NULL);
 }
-
-/* static pos_sound *create_pos_sound(MIX_Audio *audio, float gain) {
-    pos_sound *p_sound = malloc(sizeof(pos_sound));
-    if (pos_sound_head) {
-        pos_sound_head->prev = p_sound;
-    }
-    p_sound->next = pos_sound_head;
-    pos_sound_head = p_sound;
-    p_sound->track = create_singleuse_track(audio, gain, p_sound);
-    return p_sound;
-} */
 
 void sound_update_pos_pan(pos_sound *s) {
     float x, y;
@@ -126,8 +151,8 @@ void sound_update_pos_pan(pos_sound *s) {
     });
 }
 
-void sound_play_pos_static(MIX_Audio *audio, float gain, float x, float y, float z) {
-    pos_sound *p_sound = pos_sound_create(audio, gain);
+void sound_play_pos_static(int sound_index, float gain, float x, float y, float z) {
+    pos_sound *p_sound = pos_sound_create(sounds[sound_index], gain);
 
     p_sound->type = POS_SOUND_STATIC;
     p_sound->pos.coords.x = x;
@@ -136,8 +161,8 @@ void sound_play_pos_static(MIX_Audio *audio, float gain, float x, float y, float
     sound_update_pos_pan(p_sound);
 }
 
-void sound_play_pos_mobj(MIX_Audio *audio, float gain, mobj *obj) {
-    pos_sound *p_sound = pos_sound_create(audio, gain);
+void sound_play_pos_mobj(int sound_index, float gain, mobj *obj) {
+    pos_sound *p_sound = pos_sound_create(sounds[sound_index], gain);
     
     p_sound->type = POS_SOUND_MOBJ;
     p_sound->pos.obj = obj;

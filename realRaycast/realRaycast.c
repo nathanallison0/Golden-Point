@@ -553,13 +553,13 @@ void setup(void) {
     // Initialize keyboard state
     state = SDL_GetKeyboardState(NULL);
 
-    #if !__EMSCRIPTEN__
+    /* #if !__EMSCRIPTEN__
     sound_effect = MIX_LoadAudio(
         audio_mixer,
         "/Users/nallison/Documents/sfx/raycasting/Final spring flick edit 1b CLEAN FINAL2Mono.wav",
         false
     ); assert(sound_effect);
-    #endif
+    #endif */
 
     pixel_fov_circumference = (WINDOW_WIDTH / fov) * (PI * 2);
     radians_per_pixel = fov / WINDOW_WIDTH;
@@ -711,7 +711,7 @@ void process_input(void) {
             );
 
             // Sfx
-            sound_play_static(sound_effect, 0.25f);
+            sound_play_static(sound_laser, 0.25f);
 
             // Attract enemy
             for (mobj *o = mobj_head; o; o = o->next) {
@@ -739,6 +739,15 @@ void process_input(void) {
                     } else {
                         door->flags &= ~DOORF_OPENING;
                     }
+
+                    // Play sound
+                    sound_play_pos_static(
+                        sound_door, 0.6f,
+                        // Emit from side where door exits wall
+                        door->x * GRID_SPACING,
+                        (door->y * GRID_SPACING) + (GRID_SPACING / 2),
+                        GRID_SPACING / 2
+                    );
                 }
             }
         }

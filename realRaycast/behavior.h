@@ -161,7 +161,7 @@ void enemy_behave(mobj *enemy) {
         frames % ENEMY_ATTACK_DELAY == 0
     ) {
         shot_create(enemy->x, enemy->y, enemy->z + ENEMY_SHOT_Z_OFF, enemy->angle, enemy);
-        sound_play_pos_mobj(sound_effect, 1.0f, enemy);
+        sound_play_pos_mobj(sound_laser, 1.0f, enemy);
     }
 }
 
