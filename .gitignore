@@ -1,7 +1,9 @@
 *
 !/**/
 !*.*
-compRun*
+comp*
+run*
 .vscode/
 .DS_Store
 realRaycast/graphics/
+pseudo

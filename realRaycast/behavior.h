@@ -1,6 +1,8 @@
 shot *shot_create(float, float, float, float, mobj *);
 
-char mobj_turn_towards(mobj *o, float target_angle, float speed) {
+#include "pathfind.h"
+
+bool mobj_turn_towards(mobj *o, float target_angle, float speed) {
     float angle_diff = target_angle - o->angle;
     fix_angle_180(angle_diff);
 
@@ -17,6 +19,28 @@ char mobj_turn_towards(mobj *o, float target_angle, float speed) {
 
     fix_angle_180(o->angle);
     return success;
+}
+
+bool mobj_can_goto(mobj *o, float x, float y) {
+    // Raycast from opposite corners to ensure path is open for the mobj's radius
+    float angle = get_angle_to(o->x, o->y, x, y);
+    float x1_off = angle > 0 ? o->radius : -o->radius;
+    float y1_off = range(-PI_2, <, angle, <, PI_2) ? -o->radius : o->radius;
+
+    float x2_off = angle > 0 ? -o->radius : o->radius;
+    float y2_off = range(-PI_2, <, angle, <, PI_2) ? o->radius : -o->radius;
+
+    /* fill_dgp(o->x + x1_off, o->y + y1_off, DG_RED);
+    fill_dgp(o->x + x2_off, o->y + y2_off, DG_RED);
+
+    fill_dgp(x + x1_off, y + y1_off, DG_GREEN);
+    fill_dgp(x + x2_off, y + y2_off, DG_GREEN); */
+
+    raycast_info v;
+    return (
+        raycast_to(o->x + x1_off, o->y + y1_off, x + x1_off, y + y1_off, angle, &v) == RAY_NOHIT &&
+        raycast_to(o->x + x2_off, o->y + y2_off, x + x2_off, y + y2_off, angle, &v) == RAY_NOHIT
+    );
 }
 
 // Particle
@@ -95,7 +119,7 @@ extra (
 );
 
 #define ENEMY_RADIUS 20 //10
-#define ENEMY_HEALTH 100
+#define ENEMY_HEALTH 20
 #define ENEMY_START_SPRITE sprite_boxShaded
 #define ENEMY_DEFEATED_SPRITE sprite_plant
 void enemy_init(float x, float y, float z, float angle) {
@@ -105,7 +129,6 @@ void enemy_init(float x, float y, float z, float angle) {
     extra->neutral_angle = angle;
 }
 
-#define ENEMY_RANGE (GRID_SPACING * 10)
 #define ENEMY_TURN_SPEED PI
 #define ENEMY_SHOT_Z_OFF (GRID_SPACING / 4)
 #define ENEMY_ATTACK_DELAY 30
@@ -122,7 +145,7 @@ void enemy_behave(mobj *enemy) {
     float target_angle;
     raycast_info v;
     char turning_towards_player = 
-        point_dist(enemy->x, enemy->y, player->x, player->y) <= ENEMY_RANGE &&
+        point_dist(enemy->x, enemy->y, player->x, player->y) <= enemy_range &&
         raycast_to_mobj(enemy, player, &v) == RAY_SUCCESS;
     
     if (turning_towards_player) {
@@ -142,14 +165,145 @@ void enemy_behave(mobj *enemy) {
     }
 }
 
+// Smart enemy
+#define SMART_ENEMY_RADIUS 20
+#define SMART_ENEMY_SPEED 200
+enum {
+    SES_WATCH,
+    SES_MIGRATE
+};
+typedef Uint8 se_state;
+
+extra (
+    smart_enemy,
+    float x_vel; float y_vel;
+    struct {
+        float *points;
+        int num_points;
+    } route;
+);
+
+void smart_enemy_face_point(mobj *smart_enemy, float x, float y) {
+    __def_extra(smart_enemy);
+    smart_enemy->angle = get_angle_to(smart_enemy->x, smart_enemy->y, x, y);
+    extra->x_vel = cosf(smart_enemy->angle) * SMART_ENEMY_SPEED;
+    extra->y_vel = sinf(smart_enemy->angle) * SMART_ENEMY_SPEED;
+}
+
+void smart_enemy_pop_route_points(smart_enemy_extra *extra, int count) {
+    // Remove the point by reallocating less space (point located at end of array)
+    extra->route.num_points -= count;
+    extra->route.points = realloc(extra->route.points, extra->route.num_points * (sizeof(float) * 2));
+}
+
+void smart_enemy_path_smooth(mobj *smart_enemy) {
+    __def_extra(smart_enemy);
+    
+    // Remove all points where we can reach the one after unobstructed
+    int points_to_remove = 0;
+    for (int i = (extra->route.num_points - 2) * 2; i >= 0; i -= 2) {
+        float *second_point = extra->route.points + i;
+        if (!mobj_can_goto(smart_enemy, second_point[0], second_point[1])) {
+            break;
+        }
+
+        points_to_remove++;
+    }
+
+    smart_enemy_pop_route_points(extra, points_to_remove);
+}
+
+void smart_enemy_goto(mobj *smart_enemy, float x, float y) {
+    __def_extra(smart_enemy);
+
+    if (extra->route.num_points != 0) {
+        free(extra->route.points);
+    }
+
+    extra->route.points = pathfind(
+        (int) smart_enemy->x / GRID_SPACING, (int) smart_enemy->y / GRID_SPACING,
+        (int) x / GRID_SPACING, (int) y / GRID_SPACING,
+        &(extra->route.num_points)
+    );
+
+    smart_enemy_path_smooth(smart_enemy);
+
+    float *point = extra->route.points + ((extra->route.num_points - 1) * 2);
+
+    if (extra->route.points) {
+        smart_enemy_face_point(
+            smart_enemy,
+            point[0],
+            point[1]
+        );
+    }
+
+    // Show pathing
+    for (int i = 0; i < extra->route.num_points; i++) {
+        temp_dgp(
+            extra->route.points[i * 2],
+            extra->route.points[(i * 2) + 1],
+            DG_RED
+        );
+    }
+}
+
+void smart_enemy_init(float x, float y) {
+    mobj *smart_enemy = mobj_create(
+        MOBJ_SMART_ENEMY, x, y, 0, 0, SMART_ENEMY_RADIUS, sprite_boxShaded, MF_SHOOTABLE
+    );
+
+    __def_extra(smart_enemy);
+    extra->route.num_points = 0;
+}
+
+void smart_enemy_behave(mobj *smart_enemy) {
+    __def_extra(smart_enemy);
+
+    // If we have a route, go to the next point
+    if (extra->route.num_points != 0) {
+        float dx = extra->x_vel * delta_time;
+        float dy = extra->y_vel * delta_time;
+
+        float *point = extra->route.points + ((extra->route.num_points - 1) * 2);
+
+        float x_rem = fabsf(smart_enemy->x - point[0]);
+        float y_rem = fabsf(smart_enemy->y - point[1]);
+
+        // If we have passed the point, place us at it and prepare to go to next
+        if (
+            (fabsf(dx) + x_rem > 0.05f && fabsf(dx) >= x_rem) || 
+            (fabsf(dy) + y_rem > 0.05f && fabsf(dy) >= y_rem)
+        ) {
+            smart_enemy->x = point[0];
+            smart_enemy->y = point[1];
+            smart_enemy_pop_route_points(extra, 1);
+
+            // If there are more points, point towards the next one
+            if (extra->route.num_points) {
+                smart_enemy_path_smooth(smart_enemy);
+                
+                // Face next point
+                point = extra->route.points + ((extra->route.num_points - 1) * 2);
+                smart_enemy_face_point(smart_enemy, point[0], point[1]);
+            }
+        } else {
+            smart_enemy->x += dx;
+            smart_enemy->y += dy;
+        }
+    }
+}
+
 void (*mobj_behaviors[NUM_MOBJ_TYPES])(mobj *) = {
     NULL, // notype
-    particle_behave, // particle
-    enemy_behave // enemy
+    particle_behave,
+    enemy_behave,
+    smart_enemy_behave
 };
 
-Uint8 mobj_extra_sizes[NUM_MOBJ_TYPES] = {
+unsigned long mobj_extra_sizes[NUM_MOBJ_TYPES] = {
     0, // notype
-    sizeof(particle_extra), // particle
-    sizeof(enemy_extra) // enemy
+    sizeof(particle_extra),
+    sizeof(enemy_extra),
+    sizeof(smart_enemy_extra)
 };

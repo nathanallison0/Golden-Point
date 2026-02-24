@@ -64,10 +64,11 @@ char_varlabel char_vls[CHAR_VLS_LEN] = {
     {"aa level", &aa_level}
 };
 
-#define FLT_VLS_LEN 2
+#define FLT_VLS_LEN 3
 flt_varlabel flt_vls[FLT_VLS_LEN] = {
     {"zoom", &fp_scale},
-    {"sensitivity", &player_sensitivity}
+    {"sensitivity", &player_sensitivity},
+    {"enemy range", &enemy_range}
 };
 
 // Terminal
@@ -394,9 +395,7 @@ char check(char* msg) {
     return TRUE;
 }
 
-void toggle(Uint8 *var) {
-    *var = !*var;
-}
+#define toggle(var) var = !var
 
 void init_debugging(void) {
     terminal = DT_CreateInterpreter(terminal_commands, sizeof(terminal_commands) / sizeof(DT_Command));

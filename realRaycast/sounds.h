@@ -36,6 +36,8 @@ __doubly_linked_list_init__(
         } pos
 )
 
+__doubly_linked_list_head__(pos_sound)
+
 __doubly_linked_list_destroyer__(
     pos_sound,
     ; // no extra destroyer code
@@ -69,25 +71,6 @@ __doubly_linked_list_creator_add__(
     (MIX_Audio *audio, float gain),
         item->track = create_singleuse_track(audio, gain, item);
 )
-
-/* typedef struct pos_sound {
-    MIX_Track *track;
-    Uint8 type;
-    union {
-        mobj *obj;
-
-        struct {
-            float x;
-            float y;
-            float z;
-        } coords;
-    } pos;
-
-    struct pos_sound *prev;
-    struct pos_sound *next;
-} pos_sound;
-
-pos_sound *pos_sound_head = NULL; */
 
 void init_sound(void) {
     MIX_Init();

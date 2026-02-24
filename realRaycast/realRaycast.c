@@ -13,7 +13,7 @@
 #define TRUE 1
 
 #if __EMSCRIPTEN__
-#define WINDOW_SCALE 30
+#define WINDOW_SCALE 40
 #else
 #define WINDOW_SCALE 80
 #endif
@@ -82,6 +82,7 @@ mouse_s prev_mouse;
 char horizontal_input;
 char vertical_input;
 char rotation_input = 0;
+char paused = FALSE;
 
 #define click(side) (mouse.side && !prev_mouse.side)
 
@@ -243,6 +244,15 @@ float weapon_cycle_progress = 0;
 #define HEALTH_BAR_BG C_RED
 #define HEALTH_BAR_FG C_GREEN
 
+#define WIN_MSG "you won! r to reset"
+Uint8 win_msg_len;
+int win_msg_x;
+#define WIN_MSG_Y ((WINDOW_HEIGHT - (BF_CHAR_HEIGHT * WIN_MSG_SCALE)) / 2)
+#define WIN_MSG_SCALE 4
+Uint8 num_enemies;
+Uint8 defeated_enemies = 0;
+#define WIN_MSG_COLOR C_WHITE
+
 #if __EMSCRIPTEN__
 #define WEAPON_SCALE 1
 #define WEAPON_POS_OFFSET_X 1.5f
@@ -271,6 +281,8 @@ __linked_list_all__(
 #include "./debugging.h"
 
 // Grid Graphics
+#define grid_adj_x(x) ((x - grid_cam_x) * grid_cam_zoom)
+#define grid_adj_y(y) ((y - grid_cam_y) * grid_cam_zoom)
 void g_draw_rect(float x, float y, float length, float width, Uint8 r, Uint8 g, Uint8 b) {
     draw_rect_f(
         (x - grid_cam_x) * grid_cam_zoom,
@@ -304,6 +316,15 @@ void g_draw_scale_point(float x, float y, float radius, Uint8 r, Uint8 g, Uint8 
 
 void g_draw_scale_point_rgb(float x, float y, float radius, rgb color) {
     g_draw_scale_point(x, y, radius, color.r, color.g, color.b);
+}
+
+void g_draw_text_rgb(char *text, int x, int y, int font_size, int wrap_length, rgb color) {
+    BF_DrawTextRgb(
+        text,
+        grid_adj_x(x), grid_adj_y(y), 
+        font_size, wrap_length, color,
+        FALSE
+    );
 }
 
 // First person rendering
@@ -410,11 +431,13 @@ void reset(void) {
     weapon_cycle_progress = 0;
 
     // Reset enemies
+    defeated_enemies = 0;
     for (mobj *o = mobj_head; o; o = o->next) {
         if (o->type == MOBJ_ENEMY) {
             __def_extra_var(enemy, o);
             extra->health = ENEMY_HEALTH;
             o->sprite_index = ENEMY_START_SPRITE;
+            o->angle = extra->neutral_angle;
         }
     }
 }
@@ -435,7 +458,7 @@ void add_sprite_proj_a(float x, float y, float z, float angle_to, Uint16 sprite_
             new_proj->next = sprite_proj_head;
             sprite_proj_head = new_proj;
         } else {
-            // Find closest greater sprite
+            // Find fist farther space
             sprite_proj *greater = sprite_proj_head;
             for (;greater->next && greater->next->dist > distance; greater = greater->next);
 
@@ -543,20 +566,29 @@ void setup(void) {
     sky_scale_x = (float) SKY_IMAGE.width / pixel_fov_circumference;
     sky_scale_y = (float) SKY_IMAGE.height / (WINDOW_HEIGHT / 2);
 
+    win_msg_len = strlen(WIN_MSG);
+    win_msg_x = (WINDOW_WIDTH - (win_msg_len * (float) (BF_CHAR_WIDTH * WIN_MSG_SCALE))) / 2;
+
     precompute_shading_table();
 
     fp_brightness_appl = FP_BRIGHTNESS;
 
-    // Set player start pos
     reset_grid_cam();
     calc_grid_cam_center();
     enter_fps_view();
     
     create_assign_player();
-    enemy_init(983, 345, 0, 0);
+
+    smart_enemy_init(GRID_SPACING * 2, GRID_SPACING * 2);
+
+    enemy_init(983, 345, 0, PI + PI_4);
     enemy_init(681, 1269, 0, 0);
-    enemy_init(1143, 981, GRID_SPACING / 4, 0);
-    enemy_init(1139, 163, 0, 0);
+    enemy_init(1143, 981, GRID_SPACING / 4, PI + PI_2);
+    enemy_init(1239, 163, 0, PI + PI_2);
+    enemy_init(715, 646, GRID_SPACING / 4, PI + PI_2);
+    enemy_init(867, 1472, 0, 0);
+    enemy_init(1433, 712, 0, PI);
+    num_enemies = 7;
 }
 
 #define key_pressed(key) state[key]
@@ -612,6 +644,7 @@ void process_input(void) {
     shift = state[SDL_SCANCODE_LSHIFT] || state[SDL_SCANCODE_RSHIFT];
 
     if (state[SDL_SCANCODE_ESCAPE]) game_is_running = FALSE;
+    if (key_just_pressed(key(0))) paused = !paused;
 
     if (key_just_pressed(SDL_SCANCODE_SLASH)) {
         toggle_terminal_view();
@@ -620,7 +653,6 @@ void process_input(void) {
     if (view == VIEW_FPS || view == VIEW_GRID) {
         if (key_just_pressed(SDL_SCANCODE_2)) enter_grid_view();
         if (key_just_pressed(SDL_SCANCODE_1)) enter_fps_view();
-        if (key_just_pressed(SDL_SCANCODE_C)) toggle(&grid_follow_player);
 
         if (state[SDL_SCANCODE_RIGHT]) rotation_input++;
         if (state[SDL_SCANCODE_LEFT]) rotation_input--;
@@ -647,8 +679,15 @@ void process_input(void) {
         if (state[SDL_SCANCODE_UP]) player->z++;
         if (state[SDL_SCANCODE_DOWN]) player->z--;
 
-        if (player->z < 0) player->z = 0;
-        else if (player->z > GRID_SPACING) player->z = GRID_SPACING;
+        if (view == VIEW_GRID && key_just_pressed(key(M))) {
+            toggle(grid_follow_player);
+        }
+
+        if (player->z < 0) {
+            player->z = 0;
+        } else if (player->z > GRID_SPACING) {
+            player->z = GRID_SPACING;
+        }
 
         if (key_just_pressed(key(EQUALS))) {
             aa_level++;
@@ -658,7 +697,11 @@ void process_input(void) {
         }
         
         // Shots
-        if (view == VIEW_FPS && click(left)) {
+        if (
+            (view == VIEW_FPS && (click(left) || key_just_pressed(key(SPACE)))) ||
+            (view == VIEW_GRID && key_just_pressed(key(SPACE)))
+        ) {
+            // Shoot
             shot_create(
                 player->x + (cosf(player->angle + PI_2) * SHOT_START_DISP),
                 player->y + (sinf(player->angle + PI_2) * SHOT_START_DISP),
@@ -666,7 +709,17 @@ void process_input(void) {
                 player->angle,
                 player
             );
+
+            // Sfx
             sound_play_static(sound_effect, 0.25f);
+
+            // Attract enemy
+            for (mobj *o = mobj_head; o; o = o->next) {
+                if (o->type == MOBJ_SMART_ENEMY) {
+                    smart_enemy_goto(o, player->x, player->y);
+                    break;
+                }
+            }
         }
 
         // Door opening and closing
@@ -733,6 +786,10 @@ void update(void) {
 
     last_frame_time = SDL_GetTicks();
 
+    if (paused) {
+        return;
+    }
+
 
     // Perform mobj behavior and animation
     mobj *m_next;
@@ -770,14 +827,16 @@ void update(void) {
     push_player_forward(player_movement_accel * vertical_input * delta_time);
     push_player_right(player_movement_accel * horizontal_input * delta_time);
 
-    if (view == VIEW_FPS && !fps_free_mouse) {
-        rotate_player((mouse.x - (WINDOW_WIDTH / 2)) * player_sensitivity * delta_time);
-        // Reset mouse to center of screen
-        SDL_WarpMouseInWindow(window, WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
-    } else {
+    if (view == VIEW_FPS) {
+        if (!fps_free_mouse) {
+            rotate_player((mouse.x - (WINDOW_WIDTH / 2)) * player_sensitivity * delta_time);
+            // Reset mouse to center of screen
+            SDL_WarpMouseInWindow(window, WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
+        }
+    }
+    if (view != VIEW_TERMINAL) {
         rotate_player(rotation_input * player_rotation_speed * delta_time);
     }
-
 
     // Calculate velocity angle
     float player_velocity_angle = atanf(player_y_velocity / player_x_velocity);
@@ -1310,6 +1369,11 @@ void render(void) {
             // Health bar
             draw_rect_rgb(HEALTH_BAR_X, HEALTH_BAR_Y, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT, HEALTH_BAR_BG);
             draw_rect_rgb(HEALTH_BAR_X, HEALTH_BAR_Y, player_health * HEALTH_BAR_SCALE, HEALTH_BAR_HEIGHT, HEALTH_BAR_FG);
+
+            // Win message
+            if (num_enemies == defeated_enemies) {
+                BF_DrawTextRgb(WIN_MSG, win_msg_x, WIN_MSG_Y, WIN_MSG_SCALE, -1, WIN_MSG_COLOR, 0);
+            }
         }
     }
 
@@ -1443,7 +1507,37 @@ void render(void) {
             asprintf(&coords_text, "(%d, %d) %s", (int) grid_mouse_x, (int) grid_mouse_y, get_map_coords(grid_mouse_x, grid_mouse_y) ? "true" : "false");
             BF_DrawTextRgb(coords_text, mouse.x, mouse.y, 3, -1, C_RED, FALSE);
             free(coords_text);
+
+            // Test pathfinding
+            int num_points;
+            float *points = pathfind(
+                (int) grid_mouse_x / GRID_SPACING, (int) grid_mouse_y / GRID_SPACING,
+                (int) player->x / GRID_SPACING, (int) player->y / GRID_SPACING,
+                &num_points
+            );
+
+            if (points) {
+                for (int i = num_points - 1; i >= 0; i--) {
+                    g_draw_point_rgb(points[i * 2], points[(i * 2) + 1], 5, C_RED);
+                }
+
+                // Label spaces by distance
+                /* for (p_space *s = p_open_head; s; s = s->next) {
+                    char *text;
+                    asprintf(&text, "%u", s->dist_total);
+                    g_draw_text_rgb(text, s->x * GRID_SPACING, s->y * GRID_SPACING, 2, -1, C_RED);
+                    free(text);
+                }
+
+                for (p_space *s = p_closed_head; s; s = s->next) {
+                    char *text;
+                    asprintf(&text, "%u", s->dist_total);
+                    g_draw_text_rgb(text, s->x * GRID_SPACING, s->y * GRID_SPACING, 2, -1, C_BLUE);
+                    free(text);
+                } */
+            }
         }
+
     } else if (view == VIEW_TERMINAL) { // Terminal view
         // Output from previous command
         BF_DrawTextRgb(DT_console_text, 0, 0, terminal_font_size, WINDOW_WIDTH, terminal_font_color, FALSE);
@@ -1542,7 +1636,9 @@ int main() {
     while (game_is_running) {
         process_input();
         update();
-        render();
+        if (!paused) {
+            render();
+        }
     }
 
     debugging_end();

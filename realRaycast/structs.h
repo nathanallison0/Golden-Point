@@ -28,6 +28,7 @@ enum {
     MOBJ_NOTYPE,
     MOBJ_PARTICLE,
     MOBJ_ENEMY,
+    MOBJ_SMART_ENEMY,
     NUM_MOBJ_TYPES
 };
 typedef Uint8 mobj_type;
@@ -48,6 +49,7 @@ __doubly_linked_list_init__(
         void *extra;
         anim *animation;
 )
+__doubly_linked_list_head__(mobj)
 
 __doubly_linked_list_destroyer__(
     mobj,
@@ -89,3 +91,5 @@ __doubly_linked_list_all_add__(
         item->y_mom = sinf(angle) * SHOT_SPEED,
     ;// No extra destroyer code
 )
+
+float enemy_range = GRID_SPACING * 15;

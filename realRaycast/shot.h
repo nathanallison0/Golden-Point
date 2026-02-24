@@ -159,7 +159,6 @@ void shot_advance(shot *s) {
         anim_start(effect, ANIM_ONCE_DESTROY, anim_laserHit);
         shot_destroy(s);
         
-
         // Deal damage to enemies and player
         if (hit_mobj->type == MOBJ_ENEMY) {
             __def_extra_var(enemy, hit_mobj);
@@ -167,6 +166,7 @@ void shot_advance(shot *s) {
                 extra->health -= SHOT_DAMAGE;
                 if (extra->health <= 0) {
                     hit_mobj->sprite_index = ENEMY_DEFEATED_SPRITE;
+                    defeated_enemies++;
                 }
             }
         } else if (hit_mobj == player) {
