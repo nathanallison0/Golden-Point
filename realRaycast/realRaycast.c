@@ -27,6 +27,8 @@
 #define SCHOOL_APPROPRIATE TRUE
 
 #define GRID_SPACING 64
+#define GRID_SPACING_2 (GRID_SPACING / 2)
+#define coord_to_grid(x) ((int) x / GRID_SPACING)
 #define WORLDSPACE ((float) GRID_SPACING / WINDOW_HEIGHT)
 
 #define assert(x) if (!(x)) { printf("assertion error on line %d - " #x ": '%s'\n", __LINE__, SDL_GetError()); exit(1); }
@@ -179,7 +181,7 @@ mobj *player;
 #define PLAYER_START_Y (GRID_SPACING * 4)
 #define PLAYER_START_Z 40
 float player_z_elev;
-#define PLAYER_Z_BOB_DISP -2.5f
+#define PLAYER_Z_BOB_DISP -1.2f
 #define PLAYER_Z_BOB_SPEED_FACTOR 2
 #define PLAYER_START_ANGLE 0
 #define PLAYER_RADIUS 10
@@ -197,6 +199,7 @@ float player_sensitivity = 0.05f;
 #endif
 #define PLAYER_START_HEALTH 100
 int player_health = PLAYER_START_HEALTH;
+#define SOUND_TRAVEL_DIST (GRID_SPACING * 10)
 
 // Player interactions
 #define KEY_OPEN_DOOR SDL_SCANCODE_E
@@ -226,15 +229,15 @@ Uint8 fp_show_weapon = TRUE;
 
 float weapon_cycle_progress = 0;
 #if __EMSCRIPTEN__
-#define WEAPON_GRAPHIC_CYCLE_DISP_FACTOR 2
+#define WEAPON_GRAPHIC_CYCLE_DISP_FACTOR 1
 #else
-#define WEAPON_GRAPHIC_CYCLE_DISP_FACTOR 5
+#define WEAPON_GRAPHIC_CYCLE_DISP_FACTOR 3
 #endif
 
 #define WEAPON_GRAPHIC_CYCLE_LENGTH 1.5f
-#define WEAPON_GRAPHIC_CYCLE_X_DISP (WEAPON_GRAPHIC_CYCLE_DISP_FACTOR * 15)
+#define WEAPON_GRAPHIC_CYCLE_X_DISP (WEAPON_GRAPHIC_CYCLE_DISP_FACTOR * 10)
 #define WEAPON_GRAPHIC_CYCLE_Y_DISP (WEAPON_GRAPHIC_CYCLE_DISP_FACTOR * 4)
-#define WEAPON_GRAPHIC_CYCLE_SPEED_FACTOR 0.0025f
+#define WEAPON_GRAPHIC_CYCLE_SPEED_FACTOR 0.0035f
 
 #define HEALTH_BAR_SCALE 4
 #define HEALTH_BAR_WIDTH (PLAYER_START_HEALTH * HEALTH_BAR_SCALE)
@@ -244,6 +247,7 @@ float weapon_cycle_progress = 0;
 #define HEALTH_BAR_BG C_RED
 #define HEALTH_BAR_FG C_GREEN
 
+Uint8 do_enemies = TRUE;
 #define WIN_MSG "you won! r to reset"
 Uint8 win_msg_len;
 int win_msg_x;
@@ -419,6 +423,24 @@ float get_angle_to_player(float x, float y) {
 #include "sounds.h"
 #include "behavior.h"
 
+void reset_enemies(void) {
+    defeated_enemies = 0;
+
+    // Destroy all smart enemies
+    mobj *next;
+    for (mobj *o = mobj_head; o; o = next) {
+        next = o->next;
+        if (o->type == MOBJ_SMART_ENEMY) {
+            smart_enemy_destroy(o);
+        }
+    }
+    
+    // Replace all
+    for (int i = 0; i < num_enemies; i++) {
+        smart_enemy_init();
+    }
+}
+
 void reset(void) {
     // Reset player
     player->x = PLAYER_START_X;
@@ -430,8 +452,10 @@ void reset(void) {
     player_health = PLAYER_START_HEALTH;
     weapon_cycle_progress = 0;
 
+    reset_enemies();
+
     // Reset enemies
-    defeated_enemies = 0;
+    /* defeated_enemies = 0;
     for (mobj *o = mobj_head; o; o = o->next) {
         if (o->type == MOBJ_ENEMY) {
             __def_extra_var(enemy, o);
@@ -439,7 +463,7 @@ void reset(void) {
             o->sprite_index = ENEMY_START_SPRITE;
             o->angle = extra->neutral_angle;
         }
-    }
+    } */
 }
 
 #include "shot.h"
@@ -548,18 +572,13 @@ void push_player_right(float force) {
 
 const bool *state;
 void setup(void) {
+
+    srand(time(NULL));
+
     init_sound();
 
     // Initialize keyboard state
     state = SDL_GetKeyboardState(NULL);
-
-    /* #if !__EMSCRIPTEN__
-    sound_effect = MIX_LoadAudio(
-        audio_mixer,
-        "/Users/nallison/Documents/sfx/raycasting/Final spring flick edit 1b CLEAN FINAL2Mono.wav",
-        false
-    ); assert(sound_effect);
-    #endif */
 
     pixel_fov_circumference = (WINDOW_WIDTH / fov) * (PI * 2);
     radians_per_pixel = fov / WINDOW_WIDTH;
@@ -579,16 +598,16 @@ void setup(void) {
     
     create_assign_player();
 
-    smart_enemy_init(GRID_SPACING * 2, GRID_SPACING * 2);
+    num_enemies = 5;
+    reset_enemies();
 
-    enemy_init(983, 345, 0, PI + PI_4);
+    /* enemy_init(983, 345, 0, PI + PI_4);
     enemy_init(681, 1269, 0, 0);
-    enemy_init(1143, 981, GRID_SPACING / 4, PI + PI_2);
+    enemy_init(1143, 981, 0, PI + PI_2);
     enemy_init(1239, 163, 0, PI + PI_2);
-    enemy_init(715, 646, GRID_SPACING / 4, PI + PI_2);
+    enemy_init(715, 646, 0, PI + PI_2);
     enemy_init(867, 1472, 0, 0);
-    enemy_init(1433, 712, 0, PI);
-    num_enemies = 7;
+    enemy_init(1433, 712, 0, PI); */
 }
 
 #define key_pressed(key) state[key]
@@ -657,8 +676,7 @@ void process_input(void) {
         if (state[SDL_SCANCODE_RIGHT]) rotation_input++;
         if (state[SDL_SCANCODE_LEFT]) rotation_input--;
 
-        if (state[SDL_SCANCODE_R]) {
-            reset_grid_cam();
+        if (key_just_pressed(key(R))) {
             reset();
         }
 
@@ -713,11 +731,20 @@ void process_input(void) {
             // Sfx
             sound_play_static(sound_laser, 0.25f);
 
-            // Attract enemy
+            // Attract enemies
             for (mobj *o = mobj_head; o; o = o->next) {
                 if (o->type == MOBJ_SMART_ENEMY) {
-                    smart_enemy_goto(o, player->x, player->y);
-                    break;
+                    // Only check sound travel if they are within the distance radius
+                    // and are not already attacking
+                    float sound_dist;
+                    if (
+                        ((smart_enemy_extra *) o->extra)->state != SES_ATTACK &&
+                        point_dist(player->x, player->y, o->x, o->y) < SOUND_TRAVEL_DIST &&
+                        pathfind_dist(player->x, player->y, o->x, o->y, &sound_dist) &&
+                        sound_dist <= SOUND_TRAVEL_DIST
+                    ) {
+                        smart_enemy_check_coords(o, player->x, player->y);
+                    }
                 }
             }
         }
@@ -1001,14 +1028,6 @@ void update(void) {
         grid_cam_y = player->y - ((WINDOW_HEIGHT / 2) / grid_cam_zoom);
     }
 
-    // Rotate all objects
-    /* for (mobj *o = mobj_head; o; o = o->next) {
-        o->angle += PI / 90;
-        if (o->angle > PI * 2) {
-            o->angle -= PI * 2;
-        }
-    } */
-
     sound_clear_finished();
 
     // Update positional sounds
@@ -1096,31 +1115,12 @@ void render(void) {
                         float texture_row_height = wall_height / TEXTURE_WIDTH;
                         
                         float row_y = start_wall;
-                        #if SLOW_LIGHTING
-                        #define OFF 0.01f
-                        float x_off = cast.quadrant == 1 || cast.quadrant == 4 ? -OFF : OFF;
-                        float y_off = cast.quadrant == 1 || cast.quadrant == 2 ? -OFF : OFF;
-                        float dist = point_dist(hit.x, hit.y, mobj_head->x, mobj_head->y) * 2;
-                        char check = dist < FP_RENDER_DISTANCE && raycast_to(hit.x + x_off, hit.y + y_off, mobj_head->x, mobj_head->y);
-                        for (int texture_y = 0; texture_y < TEXTURE_WIDTH; texture_y++) {
-                            rgb original_color = textures[wall_texture_index][texture_y][wall_texture_x];
-                            //draw_col_frgb(ray_i, row_y, texture_row_height, shade_rgb(original_color, ray_dists[ray_i]));
-                            if (check) {
-                                draw_col_frgb(ray_i, row_y, texture_row_height, shade_rgb(original_color, dist));
-                            } else {
-                                draw_col_frgb(ray_i, row_y, texture_row_height, shade_rgb(original_color, FP_RENDER_DISTANCE * 0.9f));
-                            }
-
-                            row_y += texture_row_height;
-                        }
-                        #else
                         for (int texture_y = 0; texture_y < TEXTURE_WIDTH; texture_y++) {
                             rgb original_color = textures[wall_texture_index][texture_y][wall_texture_x];
                             draw_col_frgb(ray_i, row_y, texture_row_height, shade_rgb(original_color, ray_dists[ray_i]));
 
                             row_y += texture_row_height;
                         }
-                        #endif
                         #else
                         draw_col_rgb(ray_i, start_wall, wall_height, shade_rgb(C_WHITE, ray_dists[ray_i]));
                         #endif
@@ -1184,22 +1184,12 @@ void render(void) {
                                     int texture_y = fmodf(point_y, GRID_SPACING) * ((float) TEXTURE_WIDTH / GRID_SPACING);
 
                                     // Offset texture num by one because texture zero is the sky texture num
-                                    #if !SLOW_LIGHTING
                                     rgb color = shade_rgb(textures[texture_num - 1][texture_y][texture_x], floor_side_dist);
                                     
                                     //set_pixel_rgb(ray_i, WINDOW_HEIGHT - pixel_y - 1, color);
                                     r_sum_floor += color.r;
                                     g_sum_floor += color.g;
                                     b_sum_floor += color.b;
-                                    #else
-                                    rgb original_color = textures[texture_num - 1][texture_y][texture_x];
-                                    float light_dist = point_dist(point_x, point_y, mobj_head->x, mobj_head->y) * 2;
-                                    if (light_dist < FP_RENDER_DISTANCE && raycast_to(point_x, point_y, mobj_head->x, mobj_head->y)) {
-                                        set_pixel_rgb(ray_i, WINDOW_HEIGHT - pixel_y - 1, shade_rgb(original_color, light_dist));
-                                    } else {
-                                        set_pixel_rgb(ray_i, WINDOW_HEIGHT - pixel_y - 1, shade_rgb(original_color, FP_RENDER_DISTANCE * 0.9f));
-                                    }
-                                    #endif
                                 }
                             }
 
@@ -1452,6 +1442,17 @@ void render(void) {
             }
         }
 
+        // Smart enemy watchpoints
+        for (int i = 0; i < NUM_SE_WATCHPOINTS; i++) {
+            se_watchpoint *p = se_watchpoints + i;
+            g_draw_scale_point_rgb(
+                p->x * GRID_SPACING + GRID_SPACING_2,
+                p->y * GRID_SPACING + GRID_SPACING_2,
+                5,
+                p->occupied ? C_ORANGE : C_PURPLE
+            );
+        }
+
         // Map objects
         for (mobj *temp = mobj_head; temp; temp = temp->next) {
             g_draw_scale_point_rgb(temp->x, temp->y, temp->radius, grid_mobj_color);
@@ -1513,7 +1514,13 @@ void render(void) {
 
             // On-screen mouse coords
             char *coords_text;
-            asprintf(&coords_text, "(%d, %d) %s", (int) grid_mouse_x, (int) grid_mouse_y, get_map_coords(grid_mouse_x, grid_mouse_y) ? "true" : "false");
+            asprintf(
+                &coords_text,
+                "(%d,%d) %s",
+                (int) grid_mouse_x / GRID_SPACING,
+                (int) grid_mouse_y / GRID_SPACING,
+                get_map_coords(grid_mouse_x, grid_mouse_y) ? "empty" : "wall"
+            );
             BF_DrawTextRgb(coords_text, mouse.x, mouse.y, 3, -1, C_RED, FALSE);
             free(coords_text);
 
@@ -1529,6 +1536,8 @@ void render(void) {
                 for (int i = num_points - 1; i >= 0; i--) {
                     g_draw_point_rgb(points[i * 2], points[(i * 2) + 1], 5, C_RED);
                 }
+
+                free(points);
 
                 // Label spaces by distance
                 /* for (p_space *s = p_open_head; s; s = s->next) {

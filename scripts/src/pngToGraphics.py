@@ -3,6 +3,8 @@ import os
 from PIL import Image
 from pyperclip import copy
 
+GRID_SPACING = 64
+
 def getArgPrefixIndex(prefix):
     for i in range(len(argv)):
         if argv[i] == "-" + prefix:
@@ -34,7 +36,9 @@ def main():
     toClipboard = getBooleanOpArg("c")
     isRot = 1 if getBooleanOpArg("r") else 0
     originYOffset = int(getOptionalArg("y", 0))
-    heightPercent = getOptionalArg("p", None)
+    heightOfPixel = getOptionalArg("p", None)
+    if heightOfPixel:
+        heightOfPixel = float(heightOfPixel)
 
     def printif(*args, **kw):
         if toClipboard:
@@ -44,7 +48,7 @@ def main():
         print("""Args:
 1. Path to image
 (optional):
--p Format as sprite instead of image [height percent as C value]
+-p Format as sprite instead of image [height of one pixel]
 -r Is a rotating sprite
 -y Offset origin y [pixels]
 -a Offset alpha [offset]
@@ -119,8 +123,8 @@ def main():
 
         printif(f"new dimens: {width}x{height}")
 
-    if heightPercent:
-        final = "\t{" + f"{width}, {height}, {heightPercent}, {f"{originYOffset / height}f"}, {isRot}"
+    if heightOfPixel:
+        final = "\t{" + f"{width}, {height}, {(heightOfPixel * height) / GRID_SPACING}, {originYOffset / height}, {isRot}"
     else:
         final = "\t{" + f"{width}, {height}"
     final +=  ", (rgba[]) {\n\t\t"
@@ -144,7 +148,7 @@ def main():
         
     if toClipboard:
         copy(final)
-        print("done: copied")
+        print("done: copied to clipboard")
     else:
         print(final, end="")
 

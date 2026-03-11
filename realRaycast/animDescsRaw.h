@@ -1,6 +1,6 @@
 anim_desc anim_descs[] = {
 //,
-	{12, 8, 2}
+	{19, 8, 2}
 };
 
 #define anim_laserHit 0

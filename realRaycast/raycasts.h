@@ -317,7 +317,7 @@ int raycast_get_y_to(float y, raycast_info *v) {
     return (int) (y / GRID_SPACING);
 }
 
-ray_hit raycast_to(float x1, float y1, float x2, float y2, float angle, raycast_info *v) {
+ray_hit raycast_to_angle(float x1, float y1, float x2, float y2, float angle, raycast_info *v) {
     raycast_vars(x1, y1, angle, v);
 
     int x_to = raycast_get_x_to(x2, v);
@@ -344,11 +344,19 @@ ray_hit raycast_to(float x1, float y1, float x2, float y2, float angle, raycast_
     return RAY_HORIZHIT;
 }
 
+ray_hit raycast_to(float x1, float y1, float x2, float y2, raycast_info *v) {
+    return raycast_to_angle(
+        x1, y1, x2, y2,
+        get_angle_to(x1, y1, x2, y2),
+        v
+    );
+}
+
 ray_hit raycast_to_x(float x1, float y1, float x2, float angle, raycast_info *v) {
     float y2 = y1 + (tanf(angle) * (x2 - x1));
-    return raycast_to(x1, y1, x2, y2, angle, v);
+    return raycast_to_angle(x1, y1, x2, y2, angle, v);
 }
 
 ray_hit raycast_to_mobj(mobj *start, mobj *end, raycast_info *v) {
-    return raycast_to(start->x, start->y, end->x, end->y, get_angle_to(start->x, start->y, end->x, end->y), v);
+    return raycast_to_angle(start->x, start->y, end->x, end->y, get_angle_to(start->x, start->y, end->x, end->y), v);
 }

@@ -47,7 +47,7 @@ typedef struct {
 
 Uint8 show_grid_crosshairs = FALSE;
 
-#define CHAR_VLS_LEN 13
+#define CHAR_VLS_LEN 14
 char_varlabel char_vls[CHAR_VLS_LEN] = {
     {"grid show crosshairs", &show_grid_crosshairs},
     {"grid cam follows player", &grid_follow_player},
@@ -61,7 +61,8 @@ char_varlabel char_vls[CHAR_VLS_LEN] = {
     {"show fps", &show_fps},
     {"cap fps", &cap_fps},
     {"show weapon", &fp_show_weapon},
-    {"aa level", &aa_level}
+    {"aa level", &aa_level},
+    {"enemies behave", &do_enemies}
 };
 
 #define FLT_VLS_LEN 3
@@ -75,7 +76,7 @@ flt_varlabel flt_vls[FLT_VLS_LEN] = {
 rgb terminal_bg = {0, 0, 0};
 rgb terminal_font_color = {84, 255, 84};
 int terminal_font_size = WINDOW_HEIGHT / (BF_CHAR_HEIGHT * 30);
-char* TERMINAL_PROMPT = " > ";
+#define TERMINAL_PROMPT " > "
 alstring *terminal_input;
 DT_Interpreter *terminal;
 

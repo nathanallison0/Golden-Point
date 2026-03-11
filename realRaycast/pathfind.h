@@ -100,44 +100,32 @@ void p_insert_sort_open(p_space *s) {
 }
 
 bool p_handle_adj(ps_dir dir_from_src) {
-    int new_x = p_current->x + ps_dir_to_x(dir_from_src);
-    int new_y = p_current->y + ps_dir_to_y(dir_from_src);
-
-    if (new_x == p_end_x && new_y == p_end_y) {
-        return TRUE;
-    }
-
+    int x_off = ps_dir_to_x(dir_from_src);
+    int y_off = ps_dir_to_y(dir_from_src);
+    int new_x = p_current->x + x_off;
+    int new_y = p_current->y + y_off;
 
     // Don't pathfind through walls or out of bounds
     if (
         new_x >= 0 && new_x < GRID_WIDTH &&
         new_y >= 0 && new_y < GRID_HEIGHT &&
-        !get_map(new_x, new_y)
+        !(
+            get_map(new_x, new_y) ||
+            get_map(p_current->x + x_off, p_current->y) ||
+            get_map(p_current->x, p_current->y + y_off)
+        )
     ) {
-        // Don't travel diagonally if there is a wall in the way
-        if (
-            ((dir_from_src == PSDIR_RIGHT_DOWN || dir_from_src == PSDIR_RIGHT_UP) &&
-            get_map(p_current->x + 1, p_current->y)) ||
-
-            ((dir_from_src == PSDIR_LEFT_UP || dir_from_src == PSDIR_RIGHT_UP) &&
-            get_map(p_current->x, p_current->y + 1)) ||
-
-            ((dir_from_src == PSDIR_LEFT_DOWN || dir_from_src == PSDIR_LEFT_UP) &&
-            get_map(p_current->x - 1, p_current->y)) ||
-
-            ((dir_from_src == PSDIR_LEFT_DOWN || dir_from_src == PSDIR_RIGHT_DOWN) &&
-            get_map(p_current->x, p_current->y - 1))
-        ) {
-            return FALSE;
+        // Check if we have reached the goal
+        if (new_x == p_end_x && new_y == p_end_y) {
+            return TRUE;
         }
-
+        
         // Get the dist to travel from the last space to this one
         // If diagonal, sqrt 2
         // else, 1
         float step_dist = 
             (dir_from_src < PSDIR_LEFT && dir_from_src != PSDIR_RIGHT) ? 
-                (float) M_SQRT2 :
-                1.0f;
+                (float) M_SQRT2 : 1.0f;
 
         // Calculate the distance of this new space
         // (dist to get here plus estimated remaining dist)
@@ -156,38 +144,6 @@ bool p_handle_adj(ps_dir dir_from_src) {
                     // Re-sort this space
                     p_detach_open(s);
                     p_insert_sort_open(s);
-                    // If the prev space is greater than us, move back
-                    /* while (s->prev && s->prev->dist_total > this_dist_total) {
-                        s->prev->next = s->next;
-                        if (s->next) {
-                            s->next->prev = s->prev;
-                        }
-
-                        s->next = s->prev;
-                        if (s->next) {
-                            s->next->prev = s;
-                        }
-                        
-                        s->prev = s->prev->prev;
-                        if (s->prev) {
-                            s->prev->next = s;
-                        }
-                    }
-
-                    // If the next space is lesser, move forward
-                    while (s->next && s->next->dist_total < this_dist_total) {
-                        s->next->prev = s->prev;
-                        if (s->prev) {
-                            s->prev->next = s->next;
-                        }
-
-                        s->next = s->next->next;
-                        s->prev = s->next;
-                        s->prev->next = s;
-                        if (s->next) {
-                            s->next->prev = s;
-                        }
-                    } */
                 }
 
                 return FALSE;
@@ -311,4 +267,49 @@ float *pathfind(int start_x, int start_y, int end_x, int end_y, int *num_points)
     p_space_destroy_all(p_open_head);
     p_space_destroy_all(p_closed_head);
     return points;
+}
+
+bool pathfind_dist(float start_x, float start_y, float end_x, float end_y, float *dist) {
+    int num_points;
+    float *points = pathfind(
+        coord_to_grid(start_x),
+        coord_to_grid(start_y),
+        coord_to_grid(end_x),
+        coord_to_grid(end_y),
+        &num_points
+    );
+
+    if (!points) {
+        return FALSE;
+    }
+
+    // Perform path smoothing to find direct distance
+    float current_x = start_x;
+    float current_y = start_y;
+    float total_dist = 0;
+
+    // Set the last point's coords to that of the ending coords for accuracy
+    // Because they are in the same grid space we can skip the last point
+    points[0] = end_x;
+    points[1] = end_y;
+
+    // Start checking at the second point because the first point is in
+    // our grid space so we know we can reach it directly
+    for (int i = ((num_points - 2) * 2); i >= 0; i -= 2) {
+        // Skip each point where we can reach the following one
+        raycast_info v;
+        while (i > 0 && raycast_to(current_x, current_y, points[i - 2], points[i - 1], &v) == RAY_NOHIT) {
+            i -= 2;
+        }
+
+        // Add distance to the last point that we can directly reach
+        total_dist += point_dist(current_x, current_y, points[i], points[i + 1]);
+        current_x = points[i];
+        current_y = points[i + 1];
+    }
+
+    free(points);
+
+    *dist = total_dist;
+    return TRUE;
 }

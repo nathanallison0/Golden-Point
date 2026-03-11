@@ -87,7 +87,7 @@ typename *typename##_create creator_arguments { \
 
 #define __doubly_linked_list_destroyer__(typename, code) \
 void typename##_destroy(typename *item) { \
-    code; \
+    code \
     if (item == typename##_head) { \
         typename##_head = item->next; \
         if (typename##_head) { \

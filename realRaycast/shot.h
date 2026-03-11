@@ -169,6 +169,8 @@ void shot_advance(shot *s) {
                     defeated_enemies++;
                 }
             }
+        } else if (hit_mobj->type == MOBJ_SMART_ENEMY) {
+            smart_enemy_damage(hit_mobj, SHOT_DAMAGE);
         } else if (hit_mobj == player) {
             player_health -= SHOT_DAMAGE;
             if (player_health <= 0) {

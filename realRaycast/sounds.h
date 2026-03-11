@@ -22,7 +22,8 @@ int num_sounds = 0;
 
 enum {
     sound_laser,
-    sound_door
+    sound_door,
+    sound_enemyFlinch
 };
 
 void import_sounds(void) {
@@ -33,14 +34,13 @@ void import_sounds(void) {
         while ((entry = readdir(sound_dir))) {
             // Don't handle . and ..
             if (entry->d_type != DT_DIR) {
-                printf("loading sound %s\n", entry->d_name);
+                //printf("loaded %s\n", entry->d_name);
                 num_sounds++;
                 sounds = realloc(sounds, num_sounds * sizeof(MIX_Audio *));
 
                 // Construct rel path to file
                 char *path;
                 asprintf(&path, SOUND_DIR "/%s", entry->d_name);
-                printf("rel path: %s\n", path);
 
                 // Load sound
                 sounds[num_sounds - 1] = MIX_LoadAudio(audio_mixer, path, false);
@@ -145,8 +145,8 @@ void sound_update_pos_pan(pos_sound *s) {
     float dist_to = point_dist(player->x, player->y, x, y);
 
     MIX_SetTrack3DPosition(s->track, &(MIX_Point3D) {
-        .x = -(dist_to * cosf(rel_angle_to)) / GRID_SPACING,
-        .z = (dist_to * sinf(rel_angle_to)) / GRID_SPACING,
+        .x = -(dist_to * cosf(rel_angle_to)) / (GRID_SPACING * 2),
+        .z = (dist_to * sinf(rel_angle_to)) / (GRID_SPACING * 2),
         .y = 0
     });
 }
