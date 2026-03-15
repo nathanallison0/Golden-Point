@@ -1,6 +1,7 @@
 #include <math.h>
 #include <string.h>
 #include <dirent.h>
+#include <time.h>
 
 // Web integration
 #if __EMSCRIPTEN__

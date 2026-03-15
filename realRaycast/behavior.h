@@ -269,6 +269,12 @@ void smart_enemy_transition_untimed(mobj *smart_enemy, se_state new_state) {
     extra->seconds = 0;
 }
 
+void smart_enemy_transition_jump(mobj *smart_enemy, se_state new_state, float seconds) {
+    __def_extra(smart_enemy);
+    smart_enemy_transition(extra, new_state);
+    extra->seconds = seconds;
+}
+
 void smart_enemy_pathfind_face_point(mobj *smart_enemy, float *point) {
     __def_extra(smart_enemy);
     smart_enemy->angle = get_angle_to(smart_enemy->x, smart_enemy->y, point[0], point[1]);
@@ -371,7 +377,7 @@ void smart_enemy_init(void) {
         MOBJ_SMART_ENEMY,
         (se_watchpoints[watchpoint].x * GRID_SPACING) + GRID_SPACING_2,
         (se_watchpoints[watchpoint].y * GRID_SPACING) + GRID_SPACING_2,
-        0, // z
+        GRID_SPACING / 4, // z
         se_watchpoints[watchpoint].angle,
         SMART_ENEMY_RADIUS,
         SMART_ENEMY_SPRITE_DEFAULT,
@@ -422,7 +428,7 @@ void smart_enemy_behave(mobj *smart_enemy) {
             }
 
             // Transition to attack state
-            smart_enemy_transition_timed(smart_enemy, SES_ATTACK, SMART_ENEMY_ATTACK_WAIT_TIME);
+            smart_enemy_transition_jump(smart_enemy, SES_ATTACK, SMART_ENEMY_ATTACK_WAIT_TIME);
 
             return;
         }
