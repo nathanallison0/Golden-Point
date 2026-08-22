@@ -82,7 +82,7 @@ def main():
         listOfRgba.append(list())
 
         for col in range(width):
-            rgba = list(pixels[col, row])
+            rgba = list(pixels[col, row]) # type: ignore
             rgba[3] += alphaOffset
             rgba[3] = checkC(rgba[3])
             listOfRgba[row].append(tuple(rgba))

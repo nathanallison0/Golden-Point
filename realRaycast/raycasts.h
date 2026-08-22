@@ -216,7 +216,7 @@ xy raycast(float x, float y, float angle, raycast_info *v, int *texture_index, i
     
     if (point_dist(c_hx, c_hy * GRID_SPACING, x, y) < point_dist(c_vx * GRID_SPACING, c_vy, x, y)) {
         if (texture_index) {
-            *texture_index = /* get_horiz_texture(c_hx, c_hy); */ horiz_textures[c_hy][(int) (c_hx / GRID_SPACING)];
+            *texture_index = horiz_textures[c_hy][(int) (c_hx / GRID_SPACING)];
         }
 
         if (texture_col) {
@@ -237,7 +237,7 @@ xy raycast(float x, float y, float angle, raycast_info *v, int *texture_index, i
         return (xy) {c_hx, c_hy * GRID_SPACING};
     } else {
         if (texture_index) {
-            *texture_index = /* get_vert_texture(c_vx, c_vy); */ vertical_textures[(int) c_vy / GRID_SPACING][c_vx];
+            *texture_index = vertical_textures[(int) c_vy / GRID_SPACING][c_vx];
         }
         if (texture_col) {
             *texture_col = (fmodf(c_vy, GRID_SPACING) / GRID_SPACING) * TEXTURE_WIDTH;

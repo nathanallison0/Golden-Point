@@ -28,7 +28,8 @@
 #define SCHOOL_APPROPRIATE TRUE
 
 #define GRID_SPACING 64
-#define GRID_SPACING_2 (GRID_SPACING / 2)
+#define GS GRID_SPACING
+#define GRID_SPACING_2 (GS / 2)
 #define coord_to_grid(x) ((int) x / GRID_SPACING)
 #define WORLDSPACE ((float) GRID_SPACING / WINDOW_HEIGHT)
 
@@ -100,13 +101,16 @@ typedef Uint8 view_mode;
 view_mode view;
 view_mode prev_view;
 char fps_free_mouse = FALSE;
+Uint8 hide_mouse = FALSE;
 
 void focus_mouse(void) {
     SDL_SetWindowRelativeMouseMode(window, true);
 }
 
 void unfocus_mouse(void) {
-    SDL_SetWindowRelativeMouseMode(window, false);
+    if (!hide_mouse) {
+        SDL_SetWindowRelativeMouseMode(window, false);
+    }
 }
 
 bool mouse_focused(void) {
@@ -196,7 +200,7 @@ float player_rotation_speed = 4 * (PI / 9);
 #if __EMSCRIPTEN__
 float player_sensitivity = 0.15f;
 #else
-float player_sensitivity = 0.05f;
+float player_sensitivity = 0.0675f;
 #endif
 #define PLAYER_START_HEALTH 100
 int player_health = PLAYER_START_HEALTH;
@@ -442,6 +446,8 @@ void reset_enemies(void) {
     }
 }
 
+Uint8 idle = TRUE;
+
 void reset(void) {
     // Reset player
     player->x = PLAYER_START_X;
@@ -452,6 +458,8 @@ void reset(void) {
     player->angle = PLAYER_START_ANGLE;
     player_health = PLAYER_START_HEALTH;
     weapon_cycle_progress = 0;
+    idle = TRUE;
+    do_enemies = FALSE;
 
     reset_enemies();
 
@@ -601,14 +609,8 @@ void setup(void) {
 
     num_enemies = 5;
     reset_enemies();
-
-    /* enemy_init(983, 345, 0, PI + PI_4);
-    enemy_init(681, 1269, 0, 0);
-    enemy_init(1143, 981, 0, PI + PI_2);
-    enemy_init(1239, 163, 0, PI + PI_2);
-    enemy_init(715, 646, 0, PI + PI_2);
-    enemy_init(867, 1472, 0, 0);
-    enemy_init(1433, 712, 0, PI); */
+    
+    mobj_create(MOBJ_NOTYPE, 16 * GS, 12 * GS, 0, 0, 0, sprite_plant, 0);
 }
 
 #define key_pressed(key) state[key]
@@ -882,6 +884,12 @@ void update(void) {
 
     // Cap player velocity within range of maximum
     if (player_x_velocity != 0 || player_y_velocity != 0) {
+        // If we are idle, turn enemy behavior on
+        if (idle) {
+            idle = FALSE;
+            do_enemies = TRUE;
+        }
+
         if (player_x_velocity == 0) {
             if (player_y_velocity > player_max_velocity)
                 player_y_velocity = player_max_velocity;
@@ -1084,7 +1092,7 @@ void render(void) {
             fix_angle_180(ray_angle);
 
             if (sky_start == -1) {
-                sky_start = ray_angle * (pixel_fov_circumference / (PI * 2));
+                sky_start = (ray_angle + sky_off) * (pixel_fov_circumference / (PI * 2));
             }
 
             #if FLOOR_TEXTURES
@@ -1374,6 +1382,15 @@ void render(void) {
             if (num_enemies == defeated_enemies) {
                 BF_DrawTextRgb(WIN_MSG, win_msg_x, WIN_MSG_Y, WIN_MSG_SCALE, -1, WIN_MSG_COLOR, 0);
             }
+
+            #define LENGTH 20
+            #define WIDTH 3
+
+            // Crosshair
+            if (show_crosshair) {
+                draw_rect_rgb((WINDOW_WIDTH / 2) - (WIDTH / 2), (WINDOW_HEIGHT / 2) - (LENGTH / 2), WIDTH, LENGTH, C_WHITE);
+                draw_rect_rgb((WINDOW_WIDTH / 2) - (LENGTH / 2), (WINDOW_HEIGHT / 2) - (WIDTH / 2), LENGTH, WIDTH, C_WHITE);
+            }
         }
     }
 
@@ -1491,12 +1508,6 @@ void render(void) {
             g_draw_point_rgb(temp_dgp_list[i].x, temp_dgp_list[i].y, 
                 dgp_radius * (temp_dgp_list[i].color_index == DG_BLUE ? 1.5f : 1),
                 DG_COLORS[temp_dgp_list[i].color_index]);
-        }
-
-        // Grid crosshair
-        if (show_grid_crosshairs) {
-            draw_rect_frgb(WINDOW_WIDTH / 2, 0, 1, WINDOW_HEIGHT, C_WHITE);
-            draw_rect_frgb(0, WINDOW_HEIGHT / 2, WINDOW_WIDTH, 1, C_WHITE);
         }
 
         if (show_mouse_coords) {

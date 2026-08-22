@@ -208,8 +208,8 @@ se_watchpoint se_watchpoints[NUM_SE_WATCHPOINTS] = {
     {5, 14, PI_2 + PI_4, 0},
     {10, 23, PI, 0},
     {1, 6, PI_4, 0},
-    {19, 6, PI, 0},
-    {13, 10, PI_4, 0}
+    {19, 6, PI + PI_2, 0},
+    {23, 10, PI_2 + PI_4, 0}
 };
 
 extra (

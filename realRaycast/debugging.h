@@ -45,11 +45,10 @@ typedef struct {
     float *value;
 } flt_varlabel;
 
-Uint8 show_grid_crosshairs = FALSE;
+Uint8 show_crosshair = FALSE;
 
-#define CHAR_VLS_LEN 14
+#define CHAR_VLS_LEN 15
 char_varlabel char_vls[CHAR_VLS_LEN] = {
-    {"grid show crosshairs", &show_grid_crosshairs},
     {"grid cam follows player", &grid_follow_player},
     {"show player vision",  &show_player_vision},
     {"show player trail",  &show_player_trail},
@@ -62,14 +61,19 @@ char_varlabel char_vls[CHAR_VLS_LEN] = {
     {"cap fps", &cap_fps},
     {"show weapon", &fp_show_weapon},
     {"aa level", &aa_level},
-    {"enemies behave", &do_enemies}
+    {"enemies behave", &do_enemies},
+    {"hide mouse", &hide_mouse},
+    {"show crosshair", &show_crosshair}
 };
 
-#define FLT_VLS_LEN 3
+float sky_off = 0;
+
+#define FLT_VLS_LEN 4
 flt_varlabel flt_vls[FLT_VLS_LEN] = {
     {"zoom", &fp_scale},
     {"sensitivity", &player_sensitivity},
-    {"enemy range", &enemy_range}
+    {"enemy range", &enemy_range},
+    {"sky off", &sky_off}
 };
 
 // Terminal
@@ -81,6 +85,11 @@ alstring *terminal_input;
 DT_Interpreter *terminal;
 
 static void CMD_echo(int num_args, char **args) {
+    if (num_args == 0) {
+        DT_ConsolePrint(" ");
+        return;
+    }
+    
     DT_CombineArgs(args, 0, num_args, ' ');
     DT_ConsolePrintln(args[0]);
 }

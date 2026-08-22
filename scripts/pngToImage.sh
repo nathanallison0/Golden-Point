@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-python3 scripts/src/pngToGraphics.py $@
+/usr/local/bin/python3 scripts/src/pngToGraphics.py $@
