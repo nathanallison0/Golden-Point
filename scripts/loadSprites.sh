@@ -28,7 +28,7 @@ for item in ${@:3}; do
         echo "added macro"
     fi
 
-    # If is dir without .anim, load its images as a rotating sprite
+    # If dir does not end with .anim, load its images as a rotating sprite
     if [ -d "$path" ]; then
         # Separate two sets of arguments
         arg_set1=$args
