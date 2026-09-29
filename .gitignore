@@ -6,3 +6,4 @@ run*
 .vscode/
 .DS_Store
 pseudo
+*/build/
