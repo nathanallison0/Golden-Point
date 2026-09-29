@@ -402,7 +402,7 @@ void smart_enemy_track_player(mobj *smart_enemy) {
 }
 
 void smart_enemy_behave(mobj *smart_enemy) {
-    if (!do_enemies) {
+    if (!do_enemies || idle) {
         return;
     }
 

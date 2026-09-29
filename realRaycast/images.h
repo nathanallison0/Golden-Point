@@ -1,15 +1,17 @@
-#include "../../SDL/SDL3Start.h"
+#ifndef _GPOINT_IMAGES_H_
+#define _GPOINT_IMAGES_H_
+
+#include "../../SDL/start/include/SDL3Start.h"
 
 #define get_graphics(g, x, y) g.pixels[((y) * g.width) + (x)]
 #define get_graphics_p(g, x, y) g->pixels[((y) * g->width) + (x)]
 
-// Images
 typedef struct {
     Uint16 width, height;
     rgba *pixels;
 } image;
 
-#include "imagesRaw.h"
+extern image images[];
 
 void draw_image(Uint16 index, int x, int y) {
     int end_x = min(x + images[index].width, WINDOW_WIDTH);
@@ -43,18 +45,4 @@ void draw_image_scale(Uint16 index, int x, int y, int scale) {
 
 #define SKY_IMAGE images[image_sky]
 
-// Sprites
-#define NUM_ROT_SPRITE_FRAMES 8
-#define ROT_SPRITE_INCR ((M_PI * 2) / NUM_ROT_SPRITE_FRAMES)
-
-typedef struct {
-    Uint16 width, height;
-    float world_height_percent;
-    float origin_y_offset_percent;
-    Uint8 is_rot;
-    rgba *pixels;
-} sprite;
-
-float sky_scale_x, sky_scale_y;
-
-#include "spritesRaw.h"
+#endif

@@ -1,6 +1,6 @@
 #include <string.h>
 #include <stdlib.h>
-#include "../../SDL/SDL3Start.h"
+#include "../../SDL/start/include/SDL3Start.h"
 
 #define BF_NUM_CHARS 49
 #define BF_CHAR_WIDTH 5
@@ -400,7 +400,7 @@ size_t BF_char_line_x = 0;
 
 void BF_SetTextPos(int x, int y) { BF_char_line_x = x; BF_char_x = x; BF_char_y = y; }
 
-void BF_FillText(char *text, int font_size, int wrap_length, unsigned char font_color_r, unsigned char font_color_g, unsigned char font_color_b, char draw_cursor) {
+void BF_FillText(char *text, Uint8 font_size, int wrap_length, rgba font_color, char draw_cursor) {
     size_t length = strlen(text);
 
     // Iterate though each character in the text
@@ -421,24 +421,27 @@ void BF_FillText(char *text, int font_size, int wrap_length, unsigned char font_
         if (char_index != -1) {
             for (int row = 0; row < BF_CHAR_HEIGHT; row++) {
                 for (int col = 0; col < BF_CHAR_WIDTH; col++) {
-                    if (BF_CHARS[char_index][row][col])
-                    draw_rect(
-                        BF_char_x + (col * font_size),
-                        BF_char_y + (row * font_size),
-                        font_size, font_size,
-                        font_color_r, font_color_g, font_color_b, 255
-                    );
+                    if (BF_CHARS[char_index][row][col]) {
+                        draw_rect_rgba(
+                            BF_char_x + (col * font_size),
+                            BF_char_y + (row * font_size),
+                            font_size, font_size,
+                            font_color
+                        );
+                    }
                 }
             }
-        // Otherwise, if the character is not a space, don't advance the character placement
-        // (unrecognized character)
-        } else if (this_char != ' ') continue;
+        } else if (this_char != ' ') {
+            // If the character is not valid and is not a space, don't advance the character placement
+            // (unrecognized character)
+            continue;
+        }
 
         // Advance to next character x position
         BF_char_x += font_size * (BF_CHAR_WIDTH + 1);
 
         // If the next character will exceed the wrap length, go to next line
-        if (wrap_length != -1 && (BF_char_x - BF_char_line_x) + (font_size * 5) >= wrap_length) {
+        if (wrap_length != -1 && (BF_char_x - BF_char_line_x) + (font_size * 6) >= wrap_length) {
             BF_char_x = BF_char_line_x;
             BF_char_y += font_size * (BF_CHAR_HEIGHT + 1);
         }
@@ -446,21 +449,13 @@ void BF_FillText(char *text, int font_size, int wrap_length, unsigned char font_
 
     // Draw cursor
     if (draw_cursor) {
-        draw_rect(BF_char_x, BF_char_y, font_size * BF_CHAR_WIDTH, font_size * BF_CHAR_HEIGHT, font_color_r, font_color_g, font_color_b, 255);
+        draw_rect_rgba(BF_char_x, BF_char_y, font_size * BF_CHAR_WIDTH, font_size * BF_CHAR_HEIGHT, font_color);
     }
 }
 
-void BF_FillTextRgb(char *text, int font_size, int wrap_length, rgb font_color, int draw_cursor) {
-    BF_FillText(text, font_size, wrap_length, font_color.r, font_color.g, font_color.b, draw_cursor);
-}
-
-void BF_DrawText(char *text, int x, int y, int font_size, int wrap_length, unsigned char color_r, unsigned char color_g, unsigned char color_b, int show_cursor) {
+void BF_DrawText(char *text, int x, int y, int font_size, int wrap_length, rgba font_color, int show_cursor) {
     BF_SetTextPos(x, y);
-    BF_FillText(text, font_size, wrap_length, color_r, color_g, color_b, show_cursor);
-}
-
-void BF_DrawTextRgb(char *text, int x, int y, int font_size, int wrap_length, rgb color, char show_cursor) {
-    BF_DrawText(text, x, y, font_size, wrap_length, color.r, color.g, color.b, show_cursor);
+    BF_FillText(text, font_size, wrap_length, font_color, show_cursor);
 }
 
 typedef struct {

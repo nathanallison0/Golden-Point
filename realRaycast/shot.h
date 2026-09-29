@@ -1,4 +1,4 @@
-#include "../../SDL/SDL3Start.h"
+#include "../../SDL/start/include/SDL3Start.h"
 #include "../linkedList.h"
 
 #define try_mobj_hit(x, y) \

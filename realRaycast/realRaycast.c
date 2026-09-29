@@ -37,7 +37,7 @@
 
 // Custom SDL graphics functions
 // draw_rect(), etc.
-#include "../../SDL/SDL3Start.h"
+#include "../../SDL/start/include/SDL3Start.h"
 
 #define APPLY_BLUR FALSE
 Uint8 aa_level = 1;
@@ -55,7 +55,12 @@ Uint8 aa_level = 1;
 // Textures
 #include "textures.h"
 
-#include "graphics.h"
+#include "images.h"
+#include "imagesRaw.h"
+
+#include "sprites.h"
+#include "spritesRaw.h"
+
 #if SCHOOL_APPROPRIATE
 #define sprite_shot sprite_laserShot
 #define image_weapon2ForGame image_laserForGame
@@ -78,6 +83,8 @@ typedef struct {
     float x, y;
     char left, right;
 } mouse_s;
+
+bool game_is_running;
 
 // User Input Variables
 int shift = FALSE;
@@ -182,6 +189,7 @@ Uint8 debug_prr = FALSE;
 
 // Player
 mobj *player;
+Uint8 idle = TRUE;
 #define PLAYER_START_X (GRID_SPACING * 4)
 #define PLAYER_START_Y (GRID_SPACING * 4)
 #define PLAYER_START_Z 40
@@ -226,6 +234,7 @@ float fp_scale = 1 / 0.009417f;
 #define FP_RENDER_DISTANCE 2000
 #define FP_BRIGHTNESS 0.9f
 
+Uint8 tester = TRUE;
 float fp_brightness_appl;
 Uint8 fp_show_walls = TRUE;
 int pixel_fov_circumference;
@@ -260,7 +269,7 @@ int win_msg_x;
 #define WIN_MSG_SCALE 4
 Uint8 num_enemies;
 Uint8 defeated_enemies = 0;
-#define WIN_MSG_COLOR C_WHITE
+#define WIN_MSG_COLOR A_WHITE
 
 #if __EMSCRIPTEN__
 #define WEAPON_SCALE 1
@@ -327,8 +336,8 @@ void g_draw_scale_point_rgb(float x, float y, float radius, rgb color) {
     g_draw_scale_point(x, y, radius, color.r, color.g, color.b);
 }
 
-void g_draw_text_rgb(char *text, int x, int y, int font_size, int wrap_length, rgb color) {
-    BF_DrawTextRgb(
+void g_draw_text_rgb(char *text, int x, int y, int font_size, int wrap_length, rgba color) {
+    BF_DrawText(
         text,
         grid_adj_x(x), grid_adj_y(y), 
         font_size, wrap_length, color,
@@ -446,8 +455,6 @@ void reset_enemies(void) {
     }
 }
 
-Uint8 idle = TRUE;
-
 void reset(void) {
     // Reset player
     player->x = PLAYER_START_X;
@@ -459,7 +466,6 @@ void reset(void) {
     player_health = PLAYER_START_HEALTH;
     weapon_cycle_progress = 0;
     idle = TRUE;
-    do_enemies = FALSE;
 
     reset_enemies();
 
@@ -581,7 +587,6 @@ void push_player_right(float force) {
 
 const bool *state;
 void setup(void) {
-
     srand(time(NULL));
 
     init_sound();
@@ -603,7 +608,7 @@ void setup(void) {
 
     reset_grid_cam();
     calc_grid_cam_center();
-    enter_fps_view();
+    enter_grid_view();
     
     create_assign_player();
 
@@ -813,6 +818,8 @@ void process_input(void) {
     memcpy(prev_state, state, sizeof(prev_state));
 }
 
+int last_frame_time = 0;
+
 void update(void) {
     int time_to_wait = FRAME_TARGET_TIME - (SDL_GetTicks() - last_frame_time);
 
@@ -887,7 +894,6 @@ void update(void) {
         // If we are idle, turn enemy behavior on
         if (idle) {
             idle = FALSE;
-            do_enemies = TRUE;
         }
 
         if (player_x_velocity == 0) {
@@ -1058,9 +1064,7 @@ void update(void) {
 }
 
 void render(void) {
-    set_draw_color_rgb(C_BLACK);
-    SDL_RenderClear(renderer);
-    clear_array_window(0);
+    clear_renderer();
 
     if ((view == VIEW_FPS && fp_show_walls) || show_player_vision || grid_casting) { // Raycasting
         float ray_dists[WINDOW_WIDTH];
@@ -1083,6 +1087,8 @@ void render(void) {
         // Offset by half a radian pixel so that raycast goes up the center of the pixel col
         float relative_ray_angle = (-fov + radians_per_pixel) / 2;
         int sky_start = -1;
+
+        //Uint64 millis = SDL_GetTicks();
 
         // Raycast, draw walls, draw floors
         for (int ray_i = 0; ray_i < WINDOW_WIDTH; ray_i++) {
@@ -1159,12 +1165,17 @@ void render(void) {
 
                         // Perform anti-aliasing: get average of colors found in seperate places in the same pixel
                         for (int i = 0; i < aa_level; i++) {
-                            if (calc_dist) {
-                                // If we have not calculated this distance yet, do so and store
-                                floor_side_dists = realloc(floor_side_dists, ++floor_side_dists_len * sizeof(float));
-                                floor_side_dists[pixel_y + i] = (player_z_elev / ((GRID_SPACING / 2) - (pixel_y_worldspace + (i * aa_worlspace_incr)))) * fp_scale;
+                            float floor_side_dist;
+                            if (tester) {
+                                if (calc_dist) {
+                                    // If we have not calculated this distance yet, do so and store
+                                    floor_side_dists = realloc(floor_side_dists, ++floor_side_dists_len * sizeof(float));
+                                    floor_side_dists[pixel_y + i] = (player_z_elev / ((GRID_SPACING / 2) - (pixel_y_worldspace + (i * aa_worlspace_incr)))) * fp_scale;
+                                }
+                                floor_side_dist = floor_side_dists[pixel_y + i];
+                            } else {
+                                floor_side_dist = (player_z_elev / ((GRID_SPACING / 2) - (pixel_y_worldspace + (i * aa_worlspace_incr)))) * fp_scale;
                             }
-                            float floor_side_dist = floor_side_dists[pixel_y + i];
 
                             if (pixel_y < end_floor) {
                                 float straight_dist = floor_side_dist / rel_cos;
@@ -1380,7 +1391,7 @@ void render(void) {
 
             // Win message
             if (num_enemies == defeated_enemies) {
-                BF_DrawTextRgb(WIN_MSG, win_msg_x, WIN_MSG_Y, WIN_MSG_SCALE, -1, WIN_MSG_COLOR, 0);
+                BF_DrawText(WIN_MSG, win_msg_x, WIN_MSG_Y, WIN_MSG_SCALE, -1, WIN_MSG_COLOR, 0);
             }
 
             #define LENGTH 20
@@ -1533,7 +1544,7 @@ void render(void) {
                 (int) grid_mouse_y / GRID_SPACING,
                 get_map_coords(grid_mouse_x, grid_mouse_y) ? "empty" : "wall"
             );
-            BF_DrawTextRgb(coords_text, mouse.x, mouse.y, 3, -1, C_RED, FALSE);
+            BF_DrawText(coords_text, mouse.x, mouse.y, 3, -1, A_RED, FALSE);
             free(coords_text);
 
             // Test pathfinding
@@ -1570,13 +1581,13 @@ void render(void) {
 
     } else if (view == VIEW_TERMINAL) { // Terminal view
         // Output from previous command
-        BF_DrawTextRgb(DT_console_text, 0, 0, terminal_font_size, WINDOW_WIDTH, terminal_font_color, FALSE);
+        BF_DrawText(DT_console_text, 0, 0, terminal_font_size, WINDOW_WIDTH, terminal_font_color, FALSE);
     
         // Prompt string
-        BF_FillTextRgb(TERMINAL_PROMPT, terminal_font_size, WINDOW_WIDTH, terminal_font_color, FALSE);
+        BF_FillText(TERMINAL_PROMPT, terminal_font_size, WINDOW_WIDTH, terminal_font_color, FALSE);
 
         // Input text
-        BF_FillTextRgb(terminal_input->text, terminal_font_size, WINDOW_WIDTH, terminal_font_color, TRUE);
+        BF_FillText(terminal_input->text, terminal_font_size, WINDOW_WIDTH, terminal_font_color, TRUE);
     }
 
     // FPS readout
@@ -1584,7 +1595,7 @@ void render(void) {
         #define FPS_READOUT_SIZE 5
         char *fps_text;
         asprintf(&fps_text, "fps %f", 1 / delta_time);
-        BF_DrawText(fps_text, 0, 0, FPS_READOUT_SIZE, -1, 255, 255, 255, FALSE);
+        BF_DrawText(fps_text, 0, 0, FPS_READOUT_SIZE, -1, A_WHITE, FALSE);
         free(fps_text);
     }
 
@@ -1609,8 +1620,7 @@ void render(void) {
     }
     #endif
 
-    present_array_window();
-    SDL_RenderPresent(renderer);
+    present_window();
 }
 
 void free_memory(void) {
@@ -1640,7 +1650,6 @@ int main() {
         return 1;
     }
 
-    initialize_array_window();
     setup();
     init_debugging();
 
@@ -1657,8 +1666,7 @@ int main() {
 int main() {
     printf("Start\n");
 
-    game_is_running = initialize_window(SDL_INIT_VIDEO | SDL_INIT_AUDIO, "Raycasting");
-    initialize_array_window();
+    game_is_running = initialize_window(SDL_INIT_VIDEO | SDL_INIT_AUDIO, "Raycasting", WINDOW_WIDTH, WINDOW_HEIGHT);
 
     setup();
     init_debugging();
@@ -1673,7 +1681,6 @@ int main() {
 
     debugging_end();
     destroy_window();
-    destroy_array_window();
     free_memory();
 
     return 0;

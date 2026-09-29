@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include "../../SDL/SDLStart.h"
+#include "../../SDL/start/include/SDL3Start.h"
 #include "../DebugTerminal/DebugTerminal.h"
 #include "./SaveSTates.h"
 #include <string.h>
@@ -47,7 +47,7 @@ typedef struct {
 
 Uint8 show_crosshair = FALSE;
 
-#define CHAR_VLS_LEN 15
+#define CHAR_VLS_LEN 16
 char_varlabel char_vls[CHAR_VLS_LEN] = {
     {"grid cam follows player", &grid_follow_player},
     {"show player vision",  &show_player_vision},
@@ -63,7 +63,8 @@ char_varlabel char_vls[CHAR_VLS_LEN] = {
     {"aa level", &aa_level},
     {"enemies behave", &do_enemies},
     {"hide mouse", &hide_mouse},
-    {"show crosshair", &show_crosshair}
+    {"show crosshair", &show_crosshair},
+    {"floor opt", &tester}
 };
 
 float sky_off = 0;
@@ -78,7 +79,7 @@ flt_varlabel flt_vls[FLT_VLS_LEN] = {
 
 // Terminal
 rgb terminal_bg = {0, 0, 0};
-rgb terminal_font_color = {84, 255, 84};
+rgba terminal_font_color = {84, 255, 84, 255};
 int terminal_font_size = WINDOW_HEIGHT / (BF_CHAR_HEIGHT * 30);
 #define TERMINAL_PROMPT " > "
 alstring *terminal_input;

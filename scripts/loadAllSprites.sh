@@ -12,7 +12,8 @@ anim_macros=""
 ANIM_OUTPUT="./realRaycast/animDescsRaw.h"
 
 # Clear and prepare sprite array
-echo "sprite sprites[] = {" > $SPRITE_OUTPUT
+echo -e "#ifndef _GPOINT_SPRITESRAW_H_\n#define _GPOINT_SPRITESRAW_H_" > $SPRITE_OUTPUT
+echo "sprite sprites[] = {" >> $SPRITE_OUTPUT
 echo -e "\t#if !__VSCODE__" >> $SPRITE_OUTPUT
 
 # Clear and prepare animations
@@ -28,6 +29,7 @@ echo "};" >> $SPRITE_OUTPUT
 echo -e $sprite_macros >> $SPRITE_OUTPUT
 
 echo "// loaded $loaded_sprites sprites" >> $SPRITE_OUTPUT
+echo "#endif" >> $SPRITE_OUTPUT
 
 # Close anim array and paste macros
 echo -e "\n};" >> $ANIM_OUTPUT
