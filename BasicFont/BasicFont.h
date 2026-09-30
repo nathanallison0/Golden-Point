@@ -393,12 +393,51 @@ int BF_GetCharIndex(char character) {
     return -1;
 }
 
-size_t BF_char_x = 0;
-size_t BF_char_y = 0;
+int BF_char_x = 0;
+int BF_char_y = 0;
+int BF_char_line_x = 0;
+int BF_char_font_size;
+rgba BF_char_color;
 
-size_t BF_char_line_x = 0;
+void BF_SetTextAttrs(int x, int y, int font_size, rgba color) {
+    BF_char_line_x = x;
+    BF_char_x = x;
+    BF_char_y = y;
+    BF_char_font_size = font_size;
+    BF_char_color = color;
+}
 
-void BF_SetTextPos(int x, int y) { BF_char_line_x = x; BF_char_x = x; BF_char_y = y; }
+void BF_Newline(void) {
+    BF_char_x = BF_char_line_x;
+    BF_char_y += BF_char_font_size * (BF_CHAR_HEIGHT + 1);
+}
+
+void BF_AdvancePos(void) {
+    BF_char_x += BF_char_font_size * (BF_CHAR_WIDTH + 1);
+}
+
+void BF_DrawChar(char c) {
+    // Get index of character in graphics array
+    int char_index = BF_GetCharIndex(c);
+
+    // Draw character if valid
+    if (char_index != -1) {
+        for (int row = 0; row < BF_CHAR_HEIGHT; row++) {
+            for (int col = 0; col < BF_CHAR_WIDTH; col++) {
+                if (BF_CHARS[char_index][row][col]) {
+                    draw_rect_rgba(
+                        BF_char_x + (col * BF_char_font_size),
+                        BF_char_y + (row * BF_char_font_size),
+                        BF_char_font_size, BF_char_font_size,
+                        BF_char_color
+                    );
+                }
+            }
+        }
+    }
+
+    BF_AdvancePos();
+}
 
 void BF_FillText(char *text, Uint8 font_size, int wrap_length, rgba font_color, char draw_cursor) {
     size_t length = strlen(text);
@@ -409,39 +448,14 @@ void BF_FillText(char *text, Uint8 font_size, int wrap_length, rgba font_color, 
 
         // If the character is a newline, go to beginning of next line
         if (this_char == '\n') {
-            BF_char_x = BF_char_line_x;
-            BF_char_y += font_size * (BF_CHAR_HEIGHT + 1);
+            BF_Newline();
             continue;
         }
-
-        // Get index of character in graphics array
-        int char_index = BF_GetCharIndex(this_char);
-
-        // If the character is in the set, draw it
-        if (char_index != -1) {
-            for (int row = 0; row < BF_CHAR_HEIGHT; row++) {
-                for (int col = 0; col < BF_CHAR_WIDTH; col++) {
-                    if (BF_CHARS[char_index][row][col]) {
-                        draw_rect_rgba(
-                            BF_char_x + (col * font_size),
-                            BF_char_y + (row * font_size),
-                            font_size, font_size,
-                            font_color
-                        );
-                    }
-                }
-            }
-        } else if (this_char != ' ') {
-            // If the character is not valid and is not a space, don't advance the character placement
-            // (unrecognized character)
-            continue;
-        }
-
-        // Advance to next character x position
-        BF_char_x += font_size * (BF_CHAR_WIDTH + 1);
+            
+        BF_DrawChar(this_char);
 
         // If the next character will exceed the wrap length, go to next line
-        if (wrap_length != -1 && (BF_char_x - BF_char_line_x) + (font_size * 6) >= wrap_length) {
+        if (wrap_length != -1 && (BF_char_x - BF_char_line_x) + (font_size * (BF_CHAR_WIDTH)) >= wrap_length) {
             BF_char_x = BF_char_line_x;
             BF_char_y += font_size * (BF_CHAR_HEIGHT + 1);
         }
@@ -454,8 +468,77 @@ void BF_FillText(char *text, Uint8 font_size, int wrap_length, rgba font_color, 
 }
 
 void BF_DrawText(char *text, int x, int y, int font_size, int wrap_length, rgba font_color, int show_cursor) {
-    BF_SetTextPos(x, y);
+    BF_SetTextAttrs(x, y, font_size, font_color);
     BF_FillText(text, font_size, wrap_length, font_color, show_cursor);
+}
+
+int BF_DrawChars(char *text, int amount) {
+    for (int i = 0; i < amount; i++) {
+        BF_DrawChar(text[i]);
+    }
+    return amount;
+}
+
+void BF_DrawTextWordWrap(char *text, int x, int y, int font_size, int wrap_length, rgba color) {
+    BF_SetTextAttrs(x, y, font_size, color);
+
+    int line_wrap_x = x + wrap_length;
+    int char_width = font_size * (BF_CHAR_WIDTH + 1);
+
+    // If there isn't room to draw a single char, draw as one column
+    if (char_width >= wrap_length) {
+        size_t text_length = strlen(text);
+        for (size_t i = 0; i < text_length; i++) {
+            if (text[i] != ' ' && text[i] != '\n') {
+                BF_DrawChar(text[i]);
+                BF_Newline();
+            }
+        }
+        
+        return;
+    }
+
+    bool drawing = true;
+    while (drawing) {
+        char *space_addr = strchr(text, ' ');
+
+        // If there are no spaces left, draw until end of text
+        if (!space_addr) {
+            space_addr = strchr(text, '\0');
+            drawing = false;
+        }
+
+        int word_char_count = space_addr - text;
+
+        // If word is longer than wrap length, wrap by char
+        if (word_char_count * char_width >= wrap_length) {
+            // Draw up until wrap x
+            text += BF_DrawChars(text, (line_wrap_x - BF_char_x) / char_width);
+            BF_Newline();
+
+            // Draw full rows of text until rest of word will fit in a row
+            while (space_addr - text > wrap_length / char_width) {
+                text += BF_DrawChars(text, wrap_length / char_width);
+                BF_Newline();
+            }
+
+            // Draw remaining chars
+            text += BF_DrawChars(text, space_addr - text);
+        } else {
+            // The word fits within wrap length
+            // If drawing will end us past wrap length (word won't fit), newline
+            if (BF_char_x + (word_char_count * char_width) >= line_wrap_x) {
+                BF_Newline();
+            }
+
+            // Draw word
+            text += BF_DrawChars(text, space_addr - text);
+        }
+        
+        // Add space
+        BF_DrawChar(' ');
+        text++;
+    }
 }
 
 typedef struct {
