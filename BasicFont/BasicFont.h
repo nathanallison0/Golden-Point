@@ -484,78 +484,6 @@ int BF_DrawChars(char *text, int amount) {
     return amount;
 }
 
-void BF_DrawTextWordWrap(char *text, int x, int y, int font_size, int wrap_length, rgba color) {
-    BF_SetTextAttrs(x, y, font_size, color);
-
-    int line_wrap_x = x + wrap_length;
-    int char_width = font_size * (BF_CHAR_WIDTH + 1);
-
-    // If there isn't room to draw a single char, draw as one column
-    if (char_width * 2 >= wrap_length) {
-        size_t text_length = strlen(text);
-        for (size_t i = 0; i < text_length; i++) {
-            if (text[i] != ' ' && text[i] != '\n') {
-                BF_DrawChar(text[i]);
-                BF_Newline();
-            }
-        }
-        
-        return;
-    }
-
-    bool drawing = true;
-    while (drawing) {
-        char *sep_addr = strchr(text, ' ');
-        char *newline_addr = strchr(text, '\n');
-
-        // If there is a newline before the space, separate by newline
-        if (newline_addr && newline_addr < sep_addr) {
-            sep_addr = newline_addr;
-        }
-
-        // If there are no spaces left, draw until end of text
-        if (!sep_addr) {
-            sep_addr = strchr(text, '\0');
-            drawing = false;
-        }
-
-        int word_char_count = sep_addr - text;
-
-        // If word is longer than wrap length, wrap by char
-        if (word_char_count * char_width >= wrap_length) {
-            // Draw up until wrap x
-            text += BF_DrawChars(text, (line_wrap_x - BF_char_x) / char_width);
-            BF_Newline();
-
-            // Draw full rows of text until rest of word will fit in a row
-            while (sep_addr - text > wrap_length / char_width) {
-                text += BF_DrawChars(text, wrap_length / char_width);
-                BF_Newline();
-            }
-
-            // Draw remaining chars
-            text += BF_DrawChars(text, sep_addr - text);
-        } else {
-            // The word fits within wrap length
-            // If drawing will end us past wrap length (word won't fit), newline
-            if (BF_char_x + (word_char_count * char_width) >= line_wrap_x) {
-                BF_Newline();
-            }
-
-            // Draw word
-            text += BF_DrawChars(text, sep_addr - text);
-        }
-        
-        // Add separator
-        if (sep_addr == newline_addr) {
-            BF_Newline();
-        } else {
-            BF_DrawChar(' ');
-        }
-        text++;
-    }
-}
-
 typedef struct {
     char* text;
     size_t len;
@@ -578,6 +506,13 @@ void alstring_append(alstring *str, char c) {
     str->text[str->len - 1] = c;
     str->len++;
     str->text[str->len - 1] = '\0';
+}
+
+size_t alstring_appendsub(alstring *a, char *text, int length) {
+    for (int i = 0; i < length; i++) {
+        alstring_append(a, text[i]);
+    }
+    return length;
 }
 
 void alstring_pop(alstring *str) {
