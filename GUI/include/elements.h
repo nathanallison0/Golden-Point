@@ -4,17 +4,18 @@
 #include "../../../SDL/start/include/SDL3Start.h"
 
 enum {
-    GUI_CENTER_TOP,
-    GUI_CENTER_TOP_RIGHT,
-    GUI_CENTER_RIGHT,
-    GUI_CENTER_BOTTOM_RIGHT,
-    GUI_CENTER_BOTTOM,
-    GUI_CENTER_BOTTOM_LEFT,
-    GUI_CENTER_LEFT,
-    GUI_CENTER_TOP_LEFT,
-    GUI_CENTER_MIDDLE
+    GUI_CENTERX_LEFT,
+    GUI_CENTERX_MIDDLE,
+    GUI_CENTERX_RIGHT
 };
-typedef Uint8 GUI_CenterContent;
+typedef Uint8 GUI_CenterContentX;
+
+enum {
+    GUI_CENTERY_TOP,
+    GUI_CENTERY_MIDDLE,
+    GUI_CENTERY_BOTTOM
+};
+typedef Uint8 GUI_CenterContentY;
 
 enum {
     GUI_ETYPE_NONE,
@@ -36,7 +37,8 @@ typedef struct GUI_Element {
     Uint16 padding_bottom;
     Uint16 padding_left;
 
-    GUI_CenterContent center_content;
+    GUI_CenterContentX center_x;
+    GUI_CenterContentY center_y;
 
     GUI_EType type;
     void *subdata;
