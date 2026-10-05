@@ -50,6 +50,22 @@ typedef struct GUI_EText {
     rgba font_color;
 } GUI_EText;
 
+typedef struct GUI_EContainerNode {
+    GUI_Element *element;
+    struct GUI_EContainerNode *prev;
+    struct GUI_EContainerNode *next;
+
+    Uint16 margin_back;
+    Uint16 margin_front;
+} GUI_EContainerNode;
+
+typedef struct GUI_EContainer {
+    GUI_EContainerNode *head;
+    GUI_EContainerNode *tail;
+    Uint16 num_elements;
+    bool is_horizontal;
+} GUI_EContainer;
+
 /**
  * Creates a text element.
  * 
@@ -58,6 +74,25 @@ typedef struct GUI_EText {
  * \return A new text element
  */
 GUI_Element *GUI_CreateElementText(GUI_Element *base_fields, GUI_EText *text_fields);
+
+/**
+ * Creates a container element.
+ * 
+ * \param base_fields Element parent fields
+ * \param is_horizontal If `true`, the container's elements will be placed horizontally, otherwise vertical
+ * \return A new container element
+ */
+GUI_Element *GUI_CreateElementContainer(GUI_Element *base_fields, bool is_horizontal);
+
+/**
+ * Adds an element to a container at the first position.
+ * 
+ * \param container The container to add to
+ * \param element The element to add
+ * \param margin_back The back margin of the element
+ * \param margin_front The front margin of the element
+ */
+void GUI_ContainerAddElement(GUI_Element *container, GUI_Element *element, Uint16 margin_back, Uint16 margin_front);
 
 /**
  * Removes an element from memory.

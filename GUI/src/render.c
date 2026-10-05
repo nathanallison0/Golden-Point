@@ -6,7 +6,6 @@ void render_notype(GUI_Element *notype_element, int x, int y) {
 
 }
 
-
 alstring *write_text_word_wrap(char *text, int font_size, int wrap_length, int *num_lines) {
     alstring *rendered = alstring_init(10);
 
@@ -98,7 +97,7 @@ void render_text(GUI_Element *text_element, int x, int y) {
     GUI_EText *subdata = (GUI_EText *) text_element->subdata;
 
     Uint16 draw_width = text_element->width - text_element->padding_left - text_element->padding_right;
-    Uint16 draw_height = text_element->height - text_element->padding_bottom;
+    Uint16 draw_height = text_element->height - text_element->padding_bottom - text_element->padding_top;
 
     int formatted_lines;
     alstring *formatted = write_text_word_wrap(subdata->text, subdata->font_size, draw_width, &formatted_lines);
@@ -138,7 +137,29 @@ void render_text(GUI_Element *text_element, int x, int y) {
 }
 
 void render_container(GUI_Element *container_element, int x, int y) {
-
+    GUI_EContainer *subdata = container_element->subdata;
+    int render_coord;
+    if (subdata->is_horizontal) {
+        render_coord = x;
+        for (GUI_EContainerNode *node = subdata->head; node; node = node->next) {
+            GUI_RenderElement(node->element, render_coord + node->margin_back, y);
+            render_coord += 
+                node->margin_back +
+                node->element->border_width * 2 +
+                node->element->width +
+                node->margin_front;
+        }
+    } else {
+        render_coord = y;
+        for (GUI_EContainerNode *node = subdata->head; node; node = node->next) {
+            GUI_RenderElement(node->element, x, render_coord + node->margin_back);
+            render_coord +=
+                node->margin_back +
+                node->element->border_width * 2 +
+                node->element->height +
+                node->margin_front;
+        }
+    }
 }
 
 void (*render_functions[])(GUI_Element *, int, int) = {

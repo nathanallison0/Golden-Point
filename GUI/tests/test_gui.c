@@ -1,25 +1,18 @@
-#define WINDOW_WIDTH (800 / 2)
-#define WINDOW_HEIGHT (450 / 2)
+#define WINDOW_WIDTH (800)
+#define WINDOW_HEIGHT (450)
 #include "../include/gui.h"
 #include <stdio.h>
 
-GUI_Element *text_element;
-GUI_EText *subdata;
-
-void set_padding(Uint16 padding) {
-    text_element->padding_top = padding;
-    text_element->padding_right = padding;
-    text_element->padding_bottom = padding;
-    text_element->padding_left = padding;
-}
+GUI_Element *root;
 
 void render(void) {
     clear_renderer();
-    GUI_RenderElement(text_element, 0, 0);
+    GUI_RenderElement(root, 0, 0);
     present_window();
 }
 
-bool element_frozen = false;
+#define pad(x) x
+
 const bool *state;
 bool prev_state[SDL_SCANCODE_COUNT];
 #define key(k) SDL_SCANCODE_ ## k
@@ -28,32 +21,98 @@ bool prev_state[SDL_SCANCODE_COUNT];
 int main() {
     state = SDL_GetKeyboardState(NULL);
 
-    #define BORDER_WIDTH 4
-    text_element = GUI_CreateElementText(
+    #define text_centerx GUI_CENTERX_LEFT
+    #define text_centery GUI_CENTERY_TOP
+    #define text_pad pad(10)
+
+    GUI_Element text_style = {
+        .width = 350,
+        .height = 75,
+        .fill_color = A_WHITE,
+        .border_width = 2,
+        .border_color = A_RED,
+        .center_x = text_centerx,
+        .center_y = text_centery,
+        .padding_top = text_pad,
+        .padding_right = text_pad,
+        .padding_bottom = text_pad,
+        .padding_left = text_pad
+    };
+
+    GUI_Element *text_element1 = GUI_CreateElementText(
+        &text_style,
+        &(GUI_EText) {
+            .font_color = A_BLACK,
+            .font_size = 3,
+            .text = "Wow this is some text"
+        }
+    );
+
+    GUI_Element *text_element2 = GUI_CreateElementText(
+        &text_style,
+        &(GUI_EText) {
+            .font_color = A_BLACK,
+            .font_size = 3,
+            .text = "Wow second text"
+        }
+    );
+
+    GUI_Element *text_element3 = GUI_CreateElementText(
+        &text_style,
+        &(GUI_EText) {
+            .font_color = A_BLACK,
+            .font_size = 3,
+            .text = "This text is doubly contained"
+        }
+    );
+
+    GUI_Element *inner_container = GUI_CreateElementContainer(
         &(GUI_Element) {
-            .width = WINDOW_WIDTH - (BORDER_WIDTH * 2),
-            .height = WINDOW_HEIGHT - (BORDER_WIDTH * 2),
-            .fill_color = A_WHITE,
-            .border_width = BORDER_WIDTH,
-            .border_color = A_RED,
-            .center_y = GUI_CENTERY_TOP,
+            .width = 750,
+            .height = 150,
+            .fill_color = A_BLACK,
+            .border_width = 3,
+            .border_color = A_GREEN,
             .center_x = GUI_CENTERX_LEFT,
+            .center_y = GUI_CENTERY_TOP,
             .padding_top = 0,
             .padding_right = 0,
             .padding_bottom = 0,
             .padding_left = 0
         },
-        &(GUI_EText) {
-            .font_color = A_BLACK,
-            .font_size = 2,
-            .text = "I'm finally starting to do java in my CS course. Finally. I fucking hate python"
-        }
+        true
     );
-    subdata = text_element->subdata;
+
+    GUI_ContainerAddElement(inner_container, text_element3, 0, 0);
+
+    #define BORDER 4
+    #define container_pad 0//pad(20)
+    root = GUI_CreateElementContainer(
+        &(GUI_Element) {
+            .width = WINDOW_WIDTH - (BORDER * 2),
+            .height = WINDOW_HEIGHT - (BORDER * 2),
+            .fill_color = A_WHITE,
+            .border_width = BORDER,
+            .border_color = A_BLUE,
+            .center_x = GUI_CENTERX_LEFT,
+            .center_y = GUI_CENTERY_TOP,
+            .padding_top = container_pad,
+            .padding_right = container_pad,
+            .padding_bottom = container_pad,
+            .padding_left = container_pad,
+        },
+        false
+    );
+
+    #define container_margin pad(5)
+    GUI_ContainerAddElement(root, inner_container, container_margin, container_margin);
+    GUI_ContainerAddElement(root, text_element2, container_margin, container_margin);
+    GUI_ContainerAddElement(root, text_element1, container_margin, container_margin);
+    
 
     if (!initialize_window(SDL_INIT_VIDEO, "Test GUI", WINDOW_WIDTH, WINDOW_HEIGHT)) {
         fprintf(stderr, "Could not initalize sdl\n");
-        GUI_DestroyElement(text_element);
+        GUI_DestroyElement(root);
     }
 
     render();
@@ -69,87 +128,11 @@ int main() {
                 case SDL_EVENT_QUIT:
                     waiting = false;
                     break;
-                case SDL_EVENT_MOUSE_BUTTON_DOWN:
-                    if (event.button.button == SDL_BUTTON_LEFT) {
-                        element_frozen = !element_frozen;
-                    }
-                    if (element_frozen) {
-                        break;
-                    }
-                case SDL_EVENT_MOUSE_MOTION:
-                    if (!element_frozen) {
-                        text_element->width = event.motion.x - text_element->border_width * 2;
-                        text_element->height = event.motion.y - text_element->border_width * 2;
-                        changed = true;
-                    }
-                    break;
             }
         }
 
         if (pressed(ESCAPE)) {
             waiting = false;
-        }
-
-        if (just_pressed(EQUALS)) {
-            subdata->font_size++;
-            changed = true;
-        }
-
-        if (just_pressed(MINUS)) {
-            subdata->font_size--;
-            changed = true;
-        }
-        
-        #define pad_incr 10
-        if (just_pressed(LEFTBRACKET)) {
-            set_padding(text_element->padding_top - pad_incr);
-            changed = true;
-        }
-
-        if (just_pressed(RIGHTBRACKET)) {
-            set_padding(text_element->padding_top + pad_incr);
-            changed = true;
-        }
-
-        #define border_incr 2
-        if (just_pressed(DOWN)) {
-            text_element->border_width -= border_incr;
-            changed = true;
-        }
-
-        if (just_pressed(UP)) {
-            text_element->border_width += border_incr;
-            changed = true;
-        }
-
-        if (just_pressed(1)) {
-            text_element->center_y = GUI_CENTERY_TOP;
-            changed = true;
-        }
-
-        if (just_pressed(2)) {
-            text_element->center_y = GUI_CENTERY_MIDDLE;
-            changed = true;
-        }
-
-        if (just_pressed(3)) {
-            text_element->center_y = GUI_CENTERY_BOTTOM;
-            changed = true;
-        }
-
-        if (just_pressed(F1)) {
-            text_element->center_x = GUI_CENTERX_LEFT;
-            changed = true;
-        }
-
-        if (just_pressed(F2)) {
-            text_element->center_x = GUI_CENTERX_MIDDLE;
-            changed = true;
-        }
-
-        if (just_pressed(F3)) {
-            text_element->center_x = GUI_CENTERX_RIGHT;
-            changed = true;
         }
 
         memcpy(prev_state, state, sizeof(prev_state));
@@ -160,5 +143,5 @@ int main() {
     }
 
     destroy_window();
-    GUI_DestroyElement(text_element);
+    GUI_DestroyElement(root);
 }
