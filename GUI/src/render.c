@@ -54,8 +54,7 @@ void render_container(GUI_Element *container_element, int x, int y) {
             GUI_RenderElement(node->element, render_coord + node->margin_back, y);
             render_coord += 
                 node->margin_back +
-                node->element->border_width * 2 +
-                node->element->width +
+                get_total_width(node->element) +
                 node->margin_front;
         }
     } else {
@@ -64,8 +63,7 @@ void render_container(GUI_Element *container_element, int x, int y) {
             GUI_RenderElement(node->element, x, render_coord + node->margin_back);
             render_coord +=
                 node->margin_back +
-                node->element->border_width * 2 +
-                node->element->height +
+                get_total_height(node->element) +
                 node->margin_front;
         }
     }
@@ -78,8 +76,7 @@ void (*render_functions[GUI_NUM_ETYPES])(GUI_Element *, int, int) = {
 };
 
 void GUI_RenderElement(GUI_Element *element, int x, int y) {
-    Uint16 full_width = element->width + element->border_width * 2;
-    //Uint16 full_height = element->height + element->border_width * 2;
+    Uint16 full_width = get_total_width(element);
 
     // Render border
     draw_rect_rgba(x, y, full_width, element->border_width, element->border_color); // full top row

@@ -48,7 +48,57 @@ void update_text_data(GUI_Element *text_element) {
 }
 
 void update_container_data(GUI_Element *container) {
+    GUI_EContainer *subdata = container->subdata;
 
+    if (container->width_auto) {
+        if (subdata->num_elements == 0) {
+            set_draw_width(container, 0);
+        } else if (subdata->is_horizontal) {
+            // Set the width to the sum of all element widths
+            Uint16 total_width = 0;
+            for (GUI_EContainerNode *node = subdata->head; node; node = node->next) {
+                total_width += node->margin_back + get_total_width(node->element) + node->margin_front;
+            }
+
+            set_draw_width(container, total_width);
+        } else {
+            // Set the width to be the max width of all elements
+            Uint16 max_width = get_total_width(subdata->head->element);
+            for (GUI_EContainerNode *node = subdata->head->next; node; node = node->next) {
+                Uint16 width = get_total_width(node->element);
+                if (width > max_width) {
+                    max_width = width;
+                }
+            }
+
+            set_draw_width(container, max_width);
+        }
+    }
+
+    if (container->height_auto) {
+        if (subdata->num_elements == 0) {
+            set_draw_height(container, 0);
+        } else if (subdata->is_horizontal) {
+            // Get the height to be the max height of all elements
+            Uint16 max_height = get_total_height(subdata->head->element);
+            for (GUI_EContainerNode *node = subdata->head->next; node; node = node->next) {
+                Uint16 height = get_total_height(node->element);
+                if (height > max_height) {
+                    max_height = height;
+                }
+            }
+
+            set_draw_height(container, max_height);
+        } else {
+            // Get the total height of all elements
+            Uint16 total_height = 0;
+            for (GUI_EContainerNode *node = subdata->head; node; node = node->next) {
+                total_height += node->margin_back + get_total_height(node->element) + node->margin_front;
+            }
+
+            set_draw_height(container, total_height);
+        }
+    }
 }
 
 void (*update_functions[GUI_NUM_ETYPES])(GUI_Element *) = {
@@ -121,6 +171,8 @@ GUI_Element *GUI_CreateElementContainer(GUI_Element *base_fields, bool is_horizo
     container_element->num_elements = 0;
     container_element->is_horizontal = is_horizontal;
 
+    update_container_data(base_element);
+
     return base_element;
 }
 
@@ -156,6 +208,8 @@ void GUI_ContainerAddElement(GUI_Element *container, GUI_Element *element, Uint1
     node->prev = NULL;
 
     subdata->num_elements++;
+
+    update_container_data(container);
 }
 
 void destroy_text_data(GUI_Element *text_element) {

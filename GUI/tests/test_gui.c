@@ -71,7 +71,9 @@ int main() {
     GUI_Element *inner_container = GUI_CreateElementContainer(
         &(GUI_Element) {
             .width = 750,
-            .height = 150,
+            //.width_auto = true,
+            //.height = 150,
+            .height_auto = true,
             .fill_color = A_BLACK,
             .border_width = 3,
             .border_color = A_GREEN,

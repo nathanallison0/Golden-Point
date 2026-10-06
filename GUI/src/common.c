@@ -15,3 +15,11 @@ void set_draw_width(GUI_Element *element, Uint16 draw_width) {
 void set_draw_height(GUI_Element *element, Uint16 draw_height) {
     element->height = element->padding_top + draw_height + element->padding_bottom;
 }
+
+Uint16 get_total_width(GUI_Element *element) {
+    return element->width + element->border_width * 2;
+}
+
+Uint16 get_total_height(GUI_Element *element) {
+    return element->height + element->border_width * 2;
+}
