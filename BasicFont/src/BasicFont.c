@@ -1,10 +1,9 @@
 #include <string.h>
 #include <stdlib.h>
-#include "../../SDL/start/include/SDL3Start.h"
+#include "../../../SDL/start/include/SDL3Start.h"
+#include "../include/BasicFont.h"
 
 #define BF_NUM_CHARS 49
-#define BF_CHAR_WIDTH 5
-#define BF_CHAR_HEIGHT 5
 
 const char BF_CHARS[BF_NUM_CHARS][BF_CHAR_HEIGHT][BF_CHAR_WIDTH] = {
     { // A
@@ -444,7 +443,7 @@ void BF_DrawChar(char c) {
     BF_AdvancePos();
 }
 
-void BF_FillText(char *text, Uint8 font_size, int wrap_length, rgba font_color, char draw_cursor) {
+void BF_FillText(char *text, Uint8 font_size, int wrap_length, rgba font_color, bool draw_cursor) {
     size_t length = strlen(text);
 
     // Iterate though each character in the text
@@ -472,7 +471,7 @@ void BF_FillText(char *text, Uint8 font_size, int wrap_length, rgba font_color, 
     }
 }
 
-void BF_DrawText(char *text, int x, int y, int font_size, int wrap_length, rgba font_color, int show_cursor) {
+void BF_DrawText(char *text, int x, int y, int font_size, int wrap_length, rgba font_color, bool show_cursor) {
     BF_SetTextAttrs(x, y, font_size, font_color);
     BF_FillText(text, font_size, wrap_length, font_color, show_cursor);
 }
@@ -484,11 +483,92 @@ int BF_DrawChars(char *text, int amount) {
     return amount;
 }
 
-typedef struct {
-    char* text;
-    size_t len;
-    int alloc;
-} alstring;
+alstring *BF_WriteTextWordWrap(char *text, int font_size, int wrap_length, int *num_lines) {
+    alstring *rendered = alstring_init(10);
+
+    int wrap_length_chars = (wrap_length + font_size) / (font_size * (BF_CHAR_WIDTH + 1));
+    int line_count = 1;
+
+    // If there isn't room to draw a single char, draw as one column
+    if (wrap_length_chars <= 2) {
+        size_t text_length = strlen(text);
+        for (size_t i = 0; i < text_length; i++) {
+            if (text[i] != ' ' && text[i] != '\n') {
+                alstring_append(rendered, text[i]);
+                alstring_append(rendered, '\n');
+                line_count++;
+            }
+        }
+        if (num_lines) {
+            *num_lines = line_count;
+        }
+        return rendered;
+    }
+
+    int write_col = 0;
+    bool drawing = true;
+    while (drawing) {
+        char *sep_addr = strchr(text, ' ');
+        char *newline_addr = strchr(text, '\n');
+
+        // If there is a newline before the space, separate by newline
+        if (newline_addr && newline_addr < sep_addr) {
+            sep_addr = newline_addr;
+        }
+
+        // If there are no spaces left, draw until end of text
+        if (!sep_addr) {
+            sep_addr = strchr(text, '\0');
+            drawing = false;
+        }
+
+        int word_char_count = sep_addr - text;
+
+        // If word is longer than wrap length, wrap by char
+        if (word_char_count >= wrap_length_chars) {
+            // Draw up until wrap x
+            text += alstring_appendsub(rendered, text, wrap_length_chars - write_col);
+            alstring_append(rendered, '\n'); line_count++;
+
+            // Draw full rows of text until rest of word will fit in a row
+            while (sep_addr - text > wrap_length_chars) {
+                text += alstring_appendsub(rendered, text, wrap_length_chars);
+                alstring_append(rendered, '\n'); line_count++;
+            }
+
+            // Draw remaining chars
+            write_col = alstring_appendsub(rendered, text, sep_addr - text);
+            text += write_col;
+        } else {
+            // The word fits within wrap length
+            // If drawing will end us past wrap length (word won't fit), newline
+            if (write_col + word_char_count > wrap_length_chars) {
+                alstring_append(rendered, '\n'); line_count++;
+                write_col = 0;
+            }
+
+            // Draw word
+            int written = alstring_appendsub(rendered, text, sep_addr - text);
+            write_col += written;
+            text += written;
+        }
+        
+        // Add separator
+        if (sep_addr == newline_addr) {
+            alstring_append(rendered, '\n'); line_count++;
+            write_col = 0;
+        } else {
+            alstring_append(rendered, ' ');
+            write_col++;
+        }
+        text++;
+    }
+
+    if (num_lines) {
+        *num_lines = line_count;
+    }
+    return rendered;
+}
 
 alstring *alstring_init(int alloc) {
     alstring* s = (alstring *) malloc(sizeof(*s));
@@ -519,7 +599,6 @@ void alstring_pop(alstring *str) {
     if (str->len > 1) {
         if (--str->len % str->alloc == 0) {
             str->text = realloc(str->text, sizeof(char) * str->len);
-            //printf("allocated %zu\n", str->len);
         }
         str->text[str->len - 1] = '\0';
     }

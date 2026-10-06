@@ -11,7 +11,7 @@ void render(void) {
     present_window();
 }
 
-#define pad(x) x
+#define pad(x) 0
 
 const bool *state;
 bool prev_state[SDL_SCANCODE_COUNT];
@@ -26,8 +26,10 @@ int main() {
     #define text_pad pad(10)
 
     GUI_Element text_style = {
-        .width = 350,
-        .height = 75,
+        //.width = 350,
+        .width_auto = true,
+        //.height = 75,
+        .height_auto = true,
         .fill_color = A_WHITE,
         .border_width = 2,
         .border_color = A_RED,
@@ -44,7 +46,7 @@ int main() {
         &(GUI_EText) {
             .font_color = A_BLACK,
             .font_size = 3,
-            .text = "Wow this is some text"
+            .text = "Wow this is\nsome text"
         }
     );
 

@@ -2,6 +2,7 @@
 #define _GPOINT_GUI_ELEMENTS_H_
 
 #include "../../../SDL/start/include/SDL3Start.h"
+#include "../../BasicFont/include/BasicFont.h"
 
 enum {
     GUI_CENTERX_LEFT,
@@ -20,13 +21,16 @@ typedef Uint8 GUI_CenterContentY;
 enum {
     GUI_ETYPE_NONE,
     GUI_ETYPE_TEXT,
-    GUI_ETYPE_CONTAINER
+    GUI_ETYPE_CONTAINER,
+    GUI_NUM_ETYPES
 };
 typedef Uint8 GUI_EType;
 
 typedef struct GUI_Element {
     Uint16 width;
     Uint16 height;
+    bool width_auto;
+    bool height_auto;
     rgba fill_color;
 
     Uint8 border_width;
@@ -48,6 +52,8 @@ typedef struct GUI_EText {
     char *text;
     Uint8 font_size;
     rgba font_color;
+    alstring *formatted_text;
+    int num_lines;
 } GUI_EText;
 
 typedef struct GUI_EContainerNode {
@@ -93,6 +99,13 @@ GUI_Element *GUI_CreateElementContainer(GUI_Element *base_fields, bool is_horizo
  * \param margin_front The front margin of the element
  */
 void GUI_ContainerAddElement(GUI_Element *container, GUI_Element *element, Uint16 margin_back, Uint16 margin_front);
+
+/**
+ * Updates an element to match changes to its content.
+ * 
+ * \param element The element to update
+ */
+void GUI_UpdateElement(GUI_Element *element);
 
 /**
  * Removes an element from memory.
