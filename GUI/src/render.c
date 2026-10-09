@@ -24,6 +24,7 @@ void render_text(GUI_Element *text_element, int x, int y) {
     char *start_pos = subdata->formatted_text->text;
     for (int line = 0; line < subdata->num_lines; line++) {
         char *end_pos = strchr(start_pos, line == subdata->num_lines - 1 ? '\0' : '\n');
+        char original_end = *end_pos;
         *end_pos = '\0';
 
         // Offset draw x based off center x
@@ -42,6 +43,7 @@ void render_text(GUI_Element *text_element, int x, int y) {
         BF_DrawText(start_pos, x + draw_x_offset, y + draw_y_offset + line * subdata->font_size * (BF_CHAR_HEIGHT + 1), subdata->font_size, -1, subdata->font_color, false);
 
         start_pos = end_pos + 1;
+        *end_pos = original_end;
     }
 }
 

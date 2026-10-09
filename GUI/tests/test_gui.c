@@ -11,7 +11,7 @@ void render(void) {
     present_window();
 }
 
-#define pad(x) 0
+#define pad(x) x
 
 const bool *state;
 bool prev_state[SDL_SCANCODE_COUNT];
@@ -21,32 +21,33 @@ bool prev_state[SDL_SCANCODE_COUNT];
 int main() {
     state = SDL_GetKeyboardState(NULL);
 
-    #define text_centerx GUI_CENTERX_LEFT
-    #define text_centery GUI_CENTERY_TOP
     #define text_pad pad(10)
 
     GUI_Element text_style = {
-        //.width = 350,
-        .width_auto = true,
+        .width = 500,
+        //.width_auto = true,
         //.height = 75,
         .height_auto = true,
         .fill_color = A_WHITE,
         .border_width = 2,
         .border_color = A_RED,
-        .center_x = text_centerx,
-        .center_y = text_centery,
+        .center_x = GUI_CENTERX_LEFT,
+        .center_y = GUI_CENTERY_TOP,
         .padding_top = text_pad,
         .padding_right = text_pad,
         .padding_bottom = text_pad,
         .padding_left = text_pad
     };
 
+    char sentence[] = "Lorem ipsum dolor sit amet consectetur adipiscing elit quisque faucibus ex sapien vitae pellentesque sem placerat in id cursus mi.";
+    #define NUM_WORDS 20
+    int words_shown = NUM_WORDS;
     GUI_Element *text_element1 = GUI_CreateElementText(
         &text_style,
         &(GUI_EText) {
             .font_color = A_BLACK,
             .font_size = 3,
-            .text = "Wow this is\nsome text"
+            .text = sentence
         }
     );
 
@@ -64,7 +65,7 @@ int main() {
         &(GUI_EText) {
             .font_color = A_BLACK,
             .font_size = 3,
-            .text = "This text is doubly contained"
+            .text = "This text is\ndoubly contained"
         }
     );
 
@@ -139,9 +140,26 @@ int main() {
             waiting = false;
         }
 
+        if (just_pressed(EQUALS)) {
+            if (words_shown < NUM_WORDS) {
+                *strchr(sentence, '\0') = ' ';
+                words_shown++;
+                changed = true;
+            }
+        }
+
+        if (just_pressed(MINUS)) {
+            if (words_shown > 1) {
+                *strrchr(sentence, ' ') = '\0';
+                words_shown--;
+                changed = true;
+            }
+        }
+
         memcpy(prev_state, state, sizeof(prev_state));
 
         if (changed) {
+            GUI_UpdateElement(text_element1);
             render();
         }
     }
