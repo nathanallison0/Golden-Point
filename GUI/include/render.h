@@ -1,4 +1,4 @@
-#include "../../../SDL/start/include/SDL3Start.h"
+#include "element.h"
 
 /**
  * Renders an element on the screen.

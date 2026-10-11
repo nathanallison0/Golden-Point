@@ -1,5 +1,5 @@
-#include "../include/elements.h"
 #include "../include/render.h"
+#include "../include/element.h"
 #include "../include/common.h"
 #include "../../BasicFont/include/BasicFont.h"
 
@@ -47,26 +47,42 @@ void render_text(GUI_Element *text_element, int x, int y) {
     }
 }
 
-void render_container(GUI_Element *container_element, int x, int y) {
-    GUI_EContainer *subdata = container_element->subdata;
-    int render_coord;
+void render_container(GUI_Element *container, int x, int y) {
+    GUI_EContainer *subdata = container->subdata;
+
     if (subdata->is_horizontal) {
-        render_coord = x;
-        for (GUI_EContainerNode *node = subdata->head; node; node = node->next) {
-            GUI_RenderElement(node->element, render_coord + node->margin_back, y);
-            render_coord += 
-                node->margin_back +
-                get_total_width(node->element) +
-                node->margin_front;
+        int render_x = x;
+        if (container->center_x != GUI_CENTERX_LEFT) {
+            Uint16 empty_x = get_draw_width(container) - get_container_elements_width(container);
+            render_x += container->center_x == GUI_CENTERX_MIDDLE ? empty_x / 2 : empty_x;
         }
-    } else {
-        render_coord = y;
+
         for (GUI_EContainerNode *node = subdata->head; node; node = node->next) {
-            GUI_RenderElement(node->element, x, render_coord + node->margin_back);
-            render_coord +=
-                node->margin_back +
-                get_total_height(node->element) +
-                node->margin_front;
+            int render_y_centered = y;
+            if (container->center_y != GUI_CENTERY_TOP) {
+                Uint16 empty_y = get_draw_height(container) - get_total_height(node->element);
+                render_y_centered += container->center_y == GUI_CENTERY_MIDDLE ? empty_y / 2 : empty_y;
+            }
+
+            GUI_RenderElement(node->element, render_x + node->margin_back, render_y_centered);
+            render_x += node->margin_back + get_total_width(node->element) + node->margin_front;
+        }
+    } else /* vertical */ {
+        int render_y = y;
+        if (container->center_y != GUI_CENTERY_TOP) {
+            Uint16 empty_y = get_draw_height(container) - get_container_elements_height(container);
+            render_y += container->center_y == GUI_CENTERY_MIDDLE ? empty_y / 2 : empty_y;
+        }
+
+        for (GUI_EContainerNode *node = subdata->head; node; node = node->next) {
+            int render_x_centered = x;
+            if (container->center_x != GUI_CENTERX_LEFT) {
+                Uint16 empty_x = get_draw_width(container) - get_total_width(node->element);
+                render_x_centered += container->center_x == GUI_CENTERX_MIDDLE ? empty_x / 2 : empty_x;
+            }
+
+            GUI_RenderElement(node->element, render_x_centered, render_y + node->margin_back);
+            render_y += node->margin_back + get_total_height(node->element) + node->margin_front;
         }
     }
 }
