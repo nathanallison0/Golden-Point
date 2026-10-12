@@ -15,6 +15,8 @@ typedef struct {
 
 int BF_GetCharIndex(char character);
 
+char BF_GetUpperCharKey(char lower_key);
+
 void BF_SetTextAttrs(int x, int y, int font_size, rgba color);
 
 void BF_Newline(void);

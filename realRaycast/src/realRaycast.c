@@ -37,7 +37,7 @@
 
 // Custom SDL graphics functions
 // draw_rect(), etc.
-#include "../../SDL/start/include/SDL3Start.h"
+#include "../../../SDL/start/include/SDL3Start.h"
 
 #define APPLY_BLUR FALSE
 Uint8 aa_level = 1;
@@ -47,10 +47,10 @@ Uint8 aa_level = 1;
 #define realloc(x, y) SDL_realloc(x, y)
 
 // Font
-#include "../BasicFont/BasicFont.h"
+#include "../../BasicFont/include/BasicFont.h"
 
 // Linked list generation
-#include "../linkedList.h"
+#include "linkedList.h"
 
 // Textures
 #include "textures.h"

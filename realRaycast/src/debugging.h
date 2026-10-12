@@ -1,6 +1,6 @@
 #include <stdlib.h>
-#include "../../SDL/start/include/SDL3Start.h"
-#include "../DebugTerminal/DebugTerminal.h"
+#include "../../../SDL/start/include/SDL3Start.h"
+#include "../../DebugTerminal/DebugTerminal.h"
 #include "./SaveSTates.h"
 #include <string.h>
 

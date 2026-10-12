@@ -1,7 +1,7 @@
 #ifndef _GPOINT_IMAGES_H_
 #define _GPOINT_IMAGES_H_
 
-#include "../../SDL/start/include/SDL3Start.h"
+#include "../../../SDL/start/include/SDL3Start.h"
 
 #define get_graphics(g, x, y) g.pixels[((y) * g.width) + (x)]
 #define get_graphics_p(g, x, y) g->pixels[((y) * g->width) + (x)]

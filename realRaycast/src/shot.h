@@ -1,5 +1,5 @@
-#include "../../SDL/start/include/SDL3Start.h"
-#include "../linkedList.h"
+#include "../../../SDL/start/include/SDL3Start.h"
+#include "linkedList.h"
 
 #define try_mobj_hit(x, y) \
 float dist = point_dist(s->x1, s->y1, x, y); \
