@@ -1,5 +1,6 @@
 #include "../include/container.h"
 #include "../include/update.h"
+#include "../include/common.h"
 #include "stdlib.h"
 
 GUI_EContainerNode *create_container_node(GUI_Element *element, Uint16 margin_back, Uint16 margin_front) {
@@ -34,6 +35,9 @@ void GUI_ContainerAddElement(GUI_Element *container, GUI_Element *element, Uint1
     node->prev = NULL;
 
     subdata->num_elements++;
+    if (is_expand_container_sig_dim(container, element)) {
+        subdata->num_expand_sig_dim_elements++;
+    }
 
     GUI_UpdateElement(container);
 }

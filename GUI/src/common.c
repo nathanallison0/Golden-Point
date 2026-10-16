@@ -24,6 +24,14 @@ Uint16 get_total_height(GUI_Element *element) {
     return element->height + element->border_width * 2;
 }
 
+void set_total_width(GUI_Element *element, Uint16 total_width) {
+    element->width = total_width - element->border_width * 2;
+}
+
+void set_total_height(GUI_Element *elemenet, Uint16 total_height) {
+    elemenet->height = total_height - elemenet->border_width * 2;
+}
+
 Uint16 get_container_elements_width(GUI_Element *container) {
     GUI_EContainer *subdata = container->subdata;
 
@@ -35,10 +43,8 @@ Uint16 get_container_elements_width(GUI_Element *container) {
 }
 
 Uint16 get_container_elements_height(GUI_Element *container) {
-    GUI_EContainer *subdata = container->subdata;
-
     Uint16 total_height = 0;
-    for (GUI_EContainerNode *node = subdata->head; node; node = node->next) {
+    for (GUI_EContainerNode *node = cdata(container)->head; node; node = node->next) {
         total_height += node->margin_back + get_total_height(node->element) + node->margin_front;
     }
     return total_height;

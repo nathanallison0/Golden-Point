@@ -7,6 +7,16 @@
 
 #include "../../../SDL/start/include/SDL3Start.h"
 
+const char *type_names[GUI_NUM_ETYPES] = {
+    "NONE",
+    "TEXT",
+    "CONTAINER"
+};
+
+const char *GUI_GetTypeName(GUI_EType type) {
+    return type_names[type];
+}
+
 GUI_Element *GUI_CreateElement(GUI_Element *fields, void *subdata) {
     GUI_Element *element = malloc(sizeof(*element));
     if (!element) {
@@ -16,13 +26,13 @@ GUI_Element *GUI_CreateElement(GUI_Element *fields, void *subdata) {
     memcpy(element, fields, sizeof(*element));
     element->subdata = subdata;
 
-    // If a dimension is set to auto, set the centering to be default
+    // If a dimension is set to fit content, set the centering to be default
     // to save unnecessary calculations
-    if (element->width_auto) {
+    if (element->width_dim == GUI_DIM_FITCONTENT) {
         element->center_x = GUI_CENTERX_LEFT;
     }
 
-    if (element->height_auto) {
+    if (element->height_dim == GUI_DIM_FITCONTENT) {
         element->center_y = GUI_CENTERY_TOP;
     }
 
@@ -73,6 +83,7 @@ GUI_Element *GUI_CreateElementContainer(GUI_Element *base_fields, bool is_horizo
     container_fields->head = NULL;
     container_fields->tail = NULL;
     container_fields->num_elements = 0;
+    container_fields->num_expand_sig_dim_elements = 0;
     container_fields->is_horizontal = is_horizontal;
 
     return base_element;

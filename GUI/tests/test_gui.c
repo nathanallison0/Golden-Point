@@ -1,6 +1,7 @@
 #define WINDOW_WIDTH (800)
 #define WINDOW_HEIGHT (450)
 #include "../include/gui.h"
+#include "../include/common.h"
 #include <stdio.h>
 
 GUI_Element *root;
@@ -24,10 +25,10 @@ int main() {
     #define text_pad pad(10)
 
     GUI_Element text_style = {
-        .width = 500,
-        //.width_auto = true,
+        //.width = 500,
+        .width_dim = GUI_DIM_EXPAND,
         //.height = 75,
-        .height_auto = true,
+        .height_dim = GUI_DIM_EXPAND,
         .fill_color = A_WHITE,
         .border_width = 2,
         .border_color = A_RED,
@@ -65,16 +66,39 @@ int main() {
         &(GUI_EText) {
             .font_color = A_BLACK,
             .font_size = 3,
-            .text = "This text is\ndoubly contained"
+            .text = "This text is doubly contained and expands"
+        }
+    );
+
+    GUI_Element *text_element4 = GUI_CreateElementText(
+        &(GUI_Element) {
+            .width = 300,
+            //.width_dim = GUI_DIM_EXPAND,
+            //.height = 75,
+            .height_dim = GUI_DIM_FITCONTENT,
+            .fill_color = A_WHITE,
+            .border_width = 2,
+            .border_color = A_RED,
+            .center_x = GUI_CENTERX_LEFT,
+            .center_y = GUI_CENTERY_TOP,
+            .padding_top = text_pad,
+            .padding_right = text_pad,
+            .padding_bottom = text_pad,
+            .padding_left = text_pad
+        },
+        &(GUI_EText) {
+            .font_color = A_BLACK,
+            .font_size = 3,
+            .text = "The fourth\ntext is\nover here"
         }
     );
 
     GUI_Element *inner_container = GUI_CreateElementContainer(
         &(GUI_Element) {
             .width = 750,
-            //.width_auto = true,
+            //.width_dim = GUI_DIM_FITCONTENT,
             //.height = 150,
-            .height_auto = true,
+            .height_dim = GUI_DIM_FITCONTENT,
             .fill_color = A_BLACK,
             .border_width = 3,
             .border_color = A_GREEN,
@@ -88,6 +112,7 @@ int main() {
         true
     );
 
+    GUI_ContainerAddElement(inner_container, text_element4, 0, 0);
     GUI_ContainerAddElement(inner_container, text_element3, 0, 0);
 
     #define BORDER 4
@@ -154,6 +179,18 @@ int main() {
                 words_shown--;
                 changed = true;
             }
+        }
+
+        if (just_pressed(LEFTBRACKET)) {
+            text_element4->width -= 20;
+            GUI_UpdateElementStatic(inner_container);
+            changed = true;
+        }
+
+        if (just_pressed(RIGHTBRACKET)) {
+            text_element4->width += 20;
+            GUI_UpdateElementStatic(inner_container);
+            changed = true;
         }
 
         memcpy(prev_state, state, sizeof(prev_state));

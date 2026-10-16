@@ -51,12 +51,14 @@ void render_container(GUI_Element *container, int x, int y) {
     GUI_EContainer *subdata = container->subdata;
 
     if (subdata->is_horizontal) {
+        // If elements won't be centered at the left, get starting x
         int render_x = x;
-        if (container->center_x != GUI_CENTERX_LEFT) {
+        if (container->center_x != GUI_CENTERX_LEFT && subdata->num_expand_sig_dim_elements == 0) {
             Uint16 empty_x = get_draw_width(container) - get_container_elements_width(container);
             render_x += container->center_x == GUI_CENTERX_MIDDLE ? empty_x / 2 : empty_x;
         }
 
+        // Render elements
         for (GUI_EContainerNode *node = subdata->head; node; node = node->next) {
             int render_y_centered = y;
             if (container->center_y != GUI_CENTERY_TOP) {
@@ -68,12 +70,14 @@ void render_container(GUI_Element *container, int x, int y) {
             render_x += node->margin_back + get_total_width(node->element) + node->margin_front;
         }
     } else /* vertical */ {
+        // If elements won't be centered at the top, get starting y
         int render_y = y;
-        if (container->center_y != GUI_CENTERY_TOP) {
+        if (container->center_y != GUI_CENTERY_TOP && subdata->num_expand_sig_dim_elements == 0) {
             Uint16 empty_y = get_draw_height(container) - get_container_elements_height(container);
             render_y += container->center_y == GUI_CENTERY_MIDDLE ? empty_y / 2 : empty_y;
         }
 
+        // Render elements
         for (GUI_EContainerNode *node = subdata->head; node; node = node->next) {
             int render_x_centered = x;
             if (container->center_x != GUI_CENTERX_LEFT) {

@@ -19,6 +19,13 @@ enum {
 typedef Uint8 GUI_CenterContentY;
 
 enum {
+    GUI_DIM_STATIC,
+    GUI_DIM_FITCONTENT,
+    GUI_DIM_EXPAND
+};
+typedef Uint8 GUI_Dimension;
+
+enum {
     GUI_ETYPE_NONE,
     GUI_ETYPE_TEXT,
     GUI_ETYPE_CONTAINER,
@@ -29,8 +36,8 @@ typedef Uint8 GUI_EType;
 typedef struct GUI_Element {
     Uint16 width;
     Uint16 height;
-    bool width_auto;
-    bool height_auto;
+    GUI_Dimension width_dim;
+    GUI_Dimension height_dim;
     rgba fill_color;
 
     Uint8 border_width;
@@ -69,8 +76,17 @@ typedef struct GUI_EContainer {
     GUI_EContainerNode *head;
     GUI_EContainerNode *tail;
     Uint16 num_elements;
+    Uint16 num_expand_sig_dim_elements;
     bool is_horizontal;
 } GUI_EContainer;
+
+/**
+ * Returns the name of an element type as a string.
+ * 
+ * \param type The element type
+ * \return The name of the element type as a string
+ */
+const char *GUI_GetTypeName(GUI_EType type);
 
 /**
  * Creates a text element.
