@@ -77,6 +77,7 @@ typedef struct GUI_EContainer {
     GUI_EContainerNode *tail;
     Uint16 num_elements;
     Uint16 num_expand_sig_dim_elements;
+    Uint16 num_expand_non_sig_dim_elements;
     bool is_horizontal;
 } GUI_EContainer;
 

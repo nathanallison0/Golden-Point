@@ -12,7 +12,7 @@ void render(void) {
     present_window();
 }
 
-#define pad(x) x
+#define pad(x) 0
 
 const bool *state;
 bool prev_state[SDL_SCANCODE_COUNT];
@@ -72,10 +72,10 @@ int main() {
 
     GUI_Element *text_element4 = GUI_CreateElementText(
         &(GUI_Element) {
-            .width = 300,
-            //.width_dim = GUI_DIM_EXPAND,
-            //.height = 75,
-            .height_dim = GUI_DIM_FITCONTENT,
+            //.width = 300,
+            .width_dim = GUI_DIM_EXPAND,
+            //.height = 200,
+            .height_dim = GUI_DIM_EXPAND,
             .fill_color = A_WHITE,
             .border_width = 2,
             .border_color = A_RED,
@@ -95,12 +95,12 @@ int main() {
 
     GUI_Element *inner_container = GUI_CreateElementContainer(
         &(GUI_Element) {
-            .width = 750,
-            //.width_dim = GUI_DIM_FITCONTENT,
+            //.width = 750,
+            .width_dim = GUI_DIM_EXPAND,
             //.height = 150,
-            .height_dim = GUI_DIM_FITCONTENT,
+            .height_dim = GUI_DIM_EXPAND,
             .fill_color = A_BLACK,
-            .border_width = 3,
+            .border_width = 0,
             .border_color = A_GREEN,
             .center_x = GUI_CENTERX_MIDDLE,
             .center_y = GUI_CENTERY_MIDDLE,
@@ -115,8 +115,8 @@ int main() {
     GUI_ContainerAddElement(inner_container, text_element4, 0, 0);
     GUI_ContainerAddElement(inner_container, text_element3, 0, 0);
 
-    #define BORDER 4
-    #define container_pad 0//pad(20)
+    #define BORDER 0
+    #define container_pad pad(20)
     root = GUI_CreateElementContainer(
         &(GUI_Element) {
             .width = WINDOW_WIDTH - (BORDER * 2),
@@ -148,21 +148,21 @@ int main() {
     render();
 
     SDL_Event event;
-    bool waiting = true;
-    while (waiting) {
+    bool running = true;
+    while (running) {
         SDL_Delay(10);
 
         bool changed = false;
-        while (waiting && SDL_PollEvent(&event)) {
+        while (SDL_PollEvent(&event)) {
             switch (event.type) {
                 case SDL_EVENT_QUIT:
-                    waiting = false;
+                    running = false;
                     break;
             }
         }
 
         if (pressed(ESCAPE)) {
-            waiting = false;
+            running = false;
         }
 
         if (just_pressed(EQUALS)) {
@@ -179,18 +179,6 @@ int main() {
                 words_shown--;
                 changed = true;
             }
-        }
-
-        if (just_pressed(LEFTBRACKET)) {
-            text_element4->width -= 20;
-            GUI_UpdateElementStatic(inner_container);
-            changed = true;
-        }
-
-        if (just_pressed(RIGHTBRACKET)) {
-            text_element4->width += 20;
-            GUI_UpdateElementStatic(inner_container);
-            changed = true;
         }
 
         memcpy(prev_state, state, sizeof(prev_state));

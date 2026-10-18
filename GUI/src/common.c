@@ -49,3 +49,11 @@ Uint16 get_container_elements_height(GUI_Element *container) {
     }
     return total_height;
 }
+
+bool is_expand_container_sig_dim(GUI_Element *container, GUI_Element *element) {
+    return choriz(container) ? element->width_dim == GUI_DIM_EXPAND : element->height_dim == GUI_DIM_EXPAND;
+}
+
+bool is_expand_container_non_sig_dim(GUI_Element *container, GUI_Element *element) {
+    return choriz(container) ? element->height_dim == GUI_DIM_EXPAND : element->width_dim == GUI_DIM_EXPAND;
+}

@@ -38,6 +38,9 @@ void GUI_ContainerAddElement(GUI_Element *container, GUI_Element *element, Uint1
     if (is_expand_container_sig_dim(container, element)) {
         subdata->num_expand_sig_dim_elements++;
     }
+    if (is_expand_container_non_sig_dim(container, element)) {
+        subdata->num_expand_non_sig_dim_elements++;
+    }
 
     GUI_UpdateElement(container);
 }

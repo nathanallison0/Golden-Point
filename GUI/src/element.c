@@ -84,6 +84,7 @@ GUI_Element *GUI_CreateElementContainer(GUI_Element *base_fields, bool is_horizo
     container_fields->tail = NULL;
     container_fields->num_elements = 0;
     container_fields->num_expand_sig_dim_elements = 0;
+    container_fields->num_expand_non_sig_dim_elements = 0;
     container_fields->is_horizontal = is_horizontal;
 
     return base_element;
