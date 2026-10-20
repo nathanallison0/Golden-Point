@@ -12,7 +12,7 @@ void render(void) {
     present_window();
 }
 
-#define pad(x) 0
+#define pad(x) x
 
 const bool *state;
 bool prev_state[SDL_SCANCODE_COUNT];
@@ -32,8 +32,8 @@ int main() {
         .fill_color = A_WHITE,
         .border_width = 2,
         .border_color = A_RED,
-        .center_x = GUI_CENTERX_LEFT,
-        .center_y = GUI_CENTERY_TOP,
+        .center_x = GUI_CENTERX_MIDDLE,
+        .center_y = GUI_CENTERY_MIDDLE,
         .padding_top = text_pad,
         .padding_right = text_pad,
         .padding_bottom = text_pad,
@@ -79,8 +79,8 @@ int main() {
             .fill_color = A_WHITE,
             .border_width = 2,
             .border_color = A_RED,
-            .center_x = GUI_CENTERX_LEFT,
-            .center_y = GUI_CENTERY_TOP,
+            .center_x = GUI_CENTERX_MIDDLE,
+            .center_y = GUI_CENTERY_MIDDLE,
             .padding_top = text_pad,
             .padding_right = text_pad,
             .padding_bottom = text_pad,
@@ -99,7 +99,7 @@ int main() {
             .width_dim = GUI_DIM_EXPAND,
             //.height = 150,
             .height_dim = GUI_DIM_EXPAND,
-            .fill_color = A_BLACK,
+            .fill_color = A_WHITE,
             .border_width = 0,
             .border_color = A_GREEN,
             .center_x = GUI_CENTERX_MIDDLE,
@@ -112,15 +112,18 @@ int main() {
         true
     );
 
-    GUI_ContainerAddElement(inner_container, text_element4, 0, 0);
-    GUI_ContainerAddElement(inner_container, text_element3, 0, 0);
+    #define container_margin pad(5)
 
-    #define BORDER 0
+    GUI_ContainerAddElement(inner_container, text_element4, container_margin, 0);
+    GUI_ContainerAddElement(inner_container, text_element3, 0, container_margin);
+
+    #define BORDER 4
     #define container_pad pad(20)
+    #define HEIGHT (WINDOW_HEIGHT - (BORDER * 2))
     root = GUI_CreateElementContainer(
         &(GUI_Element) {
             .width = WINDOW_WIDTH - (BORDER * 2),
-            .height = WINDOW_HEIGHT - (BORDER * 2),
+            .height = HEIGHT,
             .fill_color = A_WHITE,
             .border_width = BORDER,
             .border_color = A_BLUE,
@@ -134,11 +137,9 @@ int main() {
         false
     );
 
-    #define container_margin pad(5)
     GUI_ContainerAddElement(root, inner_container, container_margin, container_margin);
     GUI_ContainerAddElement(root, text_element2, container_margin, container_margin);
     GUI_ContainerAddElement(root, text_element1, container_margin, container_margin);
-    
 
     if (!initialize_window(SDL_INIT_VIDEO, "Test GUI", WINDOW_WIDTH, WINDOW_HEIGHT)) {
         fprintf(stderr, "Could not initalize sdl\n");

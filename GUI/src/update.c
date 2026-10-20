@@ -91,25 +91,30 @@ void expand_container_sig_dim_elements(GUI_Element *container) {
         if (is_expand_container_sig_dim(container, node->element)) {
             expand_elements[num_expand_elements_found++] = node->element;
         } else {
-            non_expand_extent += subdata->is_horizontal ? node->element->width : node->element->height;
+            non_expand_extent += choriz(container) ? get_total_width(node->element) : get_total_height(node->element);
         }
 
-        non_expand_extent += node->margin_back + node->margin_front + node->element->border_width * 2;
+        non_expand_extent += node->margin_back + node->margin_front;
     }
 
     // Get the extent that each expanding element needs to fill
-    Uint16 expand_extent = 
-        ((choriz(container) ? get_draw_width(container) : get_draw_height(container)) - non_expand_extent)
-        / subdata->num_expand_sig_dim_elements;
+    Uint16 extent_to_fill = (choriz(container) ? get_draw_width(container) : get_draw_height(container)) - non_expand_extent;
+    Uint16 expand_extent = extent_to_fill / subdata->num_expand_sig_dim_elements;
     
     // Set the proper significant dimension extent for each expanding element
     for (int i = 0; i < subdata->num_expand_sig_dim_elements; i++) {
-        if (subdata->is_horizontal) {
-            expand_elements[i]->width = expand_extent;
+        if (choriz(container)) {
+            set_total_width(expand_elements[i], expand_extent);
         } else {
-            expand_elements[i]->height = expand_extent;
+            set_total_height(expand_elements[i], expand_extent);
         }
         GUI_UpdateElementStatic(expand_elements[i]);
+    }
+
+    // If the amount of space for each element would be a decimal (we will undershoot the extent to expand into),
+    // Give the first element one extra pixel
+    if (extent_to_fill % subdata->num_expand_sig_dim_elements != 0) {
+        choriz(container) ? expand_elements[0]->width++ : expand_elements[0]->height++;
     }
 }
 
