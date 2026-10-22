@@ -1,8 +1,6 @@
-#include "../../../SDL/start/include/SDL3Start.h"
+#include <textures.h>
 
-#define TEXTURE_WIDTH 50
-
-static const rgb textures[][TEXTURE_WIDTH][TEXTURE_WIDTH] = {
+const rgb textures[][TEXTURE_WIDTH][TEXTURE_WIDTH] = {
     // Wall 1 (index 0)
     #if !__VSCODE__
     {

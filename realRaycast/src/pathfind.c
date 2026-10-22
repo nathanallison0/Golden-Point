@@ -1,4 +1,11 @@
+#include <pathfind.h>
 #include <math.h>
+#include <stdlib.h>
+#include <linkedList.h>
+#include <map.h>
+#include <constants.h>
+#include <raycasts.h>
+#include <engine.h>
 
 enum {
     PSDIR_RIGHT_UP,
@@ -248,7 +255,7 @@ float *pathfind(int start_x, int start_y, int end_x, int end_y, int *num_points)
     // Get rid of compiler warning: declaration before label
     float *points;
     goal:
-    points = malloc(sizeof(float) * 2);
+    points = (float *) malloc(sizeof(float) * 2);
 
     // Construct point path backwards in memory
     points[0] = (p_end_x * GRID_SPACING) + (GRID_SPACING / 2);
@@ -257,7 +264,7 @@ float *pathfind(int start_x, int start_y, int end_x, int end_y, int *num_points)
     int i = 1;
     // Include starting space
     for (p_space *s = p_current; s; s = s->path_prev) {
-        points = realloc(points, (i + 1) * (sizeof(float) * 2));
+        points = (float *) realloc(points, (i + 1) * (sizeof(float) * 2));
         points[i * 2] = (s->x * GRID_SPACING) + (GRID_SPACING / 2);
         points[(i * 2) + 1] = (s->y * GRID_SPACING) + (GRID_SPACING / 2);
         i++;

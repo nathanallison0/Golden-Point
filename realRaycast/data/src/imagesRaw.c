@@ -1,3 +1,5 @@
+#include <imagesRaw.h>
+
 image images[] = {
 	#if !__VSCODE__
 	{1280, 228, (rgba[]) {
@@ -8,6 +10,3 @@ image images[] = {
 	}}
 	#endif
 };
-#define image_sky 0
-#define image_laserForGame 1
-

@@ -1,19 +1,7 @@
-#include <SDL3/SDL.h>
+#include <map.h>
+#include <constants.h>
 
-// Grid
-#define GRID_WIDTH 25
-#define GRID_HEIGHT 25
-
-#define get_map(x, y) map[(int) (y)][(int) (x)]
-#define get_map_coords(x, y) get_map((x) / GRID_SPACING, (y) / GRID_SPACING)
-
-typedef enum {
-    TILE_NONSOLID,
-    TILE_SOLID,
-    TILE_HORIZ_DOOR
-} tile;
-
-static Uint8 map[GRID_HEIGHT][GRID_WIDTH] = {
+const Uint8 map[GRID_HEIGHT][GRID_WIDTH] = {
 //   1 2 3 4 5 6 7 8 9 10111213141516171819202122232425
     {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}, // 1
     {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}, // 2
@@ -42,7 +30,7 @@ static Uint8 map[GRID_HEIGHT][GRID_WIDTH] = {
     {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}  // 25
 };
 
-static Uint8 horiz_textures[GRID_HEIGHT + 1][GRID_WIDTH] = {
+const Uint8 horiz_textures[GRID_HEIGHT + 1][GRID_WIDTH] = {
 //   1 2 3 4 5 6 7 8 9 10111213141516171819202122232425
     {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, // 1
     {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, // 2
@@ -72,7 +60,7 @@ static Uint8 horiz_textures[GRID_HEIGHT + 1][GRID_WIDTH] = {
     {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}  // 26
 };
 
-static Uint8 vertical_textures[GRID_HEIGHT][GRID_WIDTH + 1] = {
+const Uint8 vertical_textures[GRID_HEIGHT][GRID_WIDTH + 1] = {
 //   1 2 3 4 5 6 7 8 9 1011121314151617181920212223242526
     {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, // 1
     {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, // 2
@@ -106,7 +94,7 @@ static Uint8 vertical_textures[GRID_HEIGHT][GRID_WIDTH + 1] = {
 #define TR 10
 #define TD 11
 // 0 is sky texture, x is texture x-1 where x>0
-Uint8 floor_textures[GRID_HEIGHT][GRID_WIDTH] = {
+const Uint8 floor_textures[GRID_HEIGHT][GRID_WIDTH] = {
 //    1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25
     { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2}, // 1
     { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2}, // 2
@@ -135,7 +123,7 @@ Uint8 floor_textures[GRID_HEIGHT][GRID_WIDTH] = {
     { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1}  // 25
 };
 #define s 0
-Uint8 ceiling_textures[GRID_HEIGHT][GRID_WIDTH] = {
+const Uint8 ceiling_textures[GRID_HEIGHT][GRID_WIDTH] = {
 //   1 2 3 4 5 6 7 8 9 10111213141516171819202122232425
     {5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5}, // 1
     {5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5}, // 2
@@ -165,21 +153,39 @@ Uint8 ceiling_textures[GRID_HEIGHT][GRID_WIDTH] = {
 };
 #undef s
 
-#define DOORF_MOVING 1
-#define DOORF_OPENING (1 << 1)
+Uint8 get_map(int x, int y) {
+    return map[y][x];
+}
 
-typedef struct {
-    int x, y;
-    float progress;
-    Uint8 flags;
-} door;
+Uint8 get_map_coords(float x, float y) {
+    return get_map((int) x / GRID_SPACING, (int) y / GRID_SPACING);
+}
 
-#define NUM_DOORS 1
+Uint8 get_horiz_texture(int x, int y) {
+    return horiz_textures[y][x];
+}
+
+Uint8 get_vert_texture(int x, int y) {
+    return vertical_textures[y][x];
+}
+
+Uint8 get_floor_texture(int x, int y) {
+    return floor_textures[y][x];
+}
+
+Uint8 get_ceil_texture(int x, int y) {
+    return ceiling_textures[y][x];
+}
+
 door doors[NUM_DOORS] = {
     {9, 5, GRID_SPACING, 0}
 };
 
-door *get_door(int x, int y) {
+door *get_door(int index) {
+    return doors + index;
+}
+
+door *get_door_tile(int x, int y) {
     for (int i = 0; i < NUM_DOORS; i++) {
         if (doors[i].x == x && doors[i].y == y) {
             return &doors[i];
@@ -189,5 +195,5 @@ door *get_door(int x, int y) {
 }
 
 door *get_door_coords(float x, float y) {
-    return get_door((int) x / GRID_SPACING, (int) y / GRID_SPACING);
+    return get_door_tile((int) x / GRID_SPACING, (int) y / GRID_SPACING);
 }

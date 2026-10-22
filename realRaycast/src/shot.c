@@ -1,5 +1,36 @@
-#include "../../../SDL/start/include/SDL3Start.h"
-#include "linkedList.h"
+#include <shot.h>
+#include <map.h>
+#include <raycasts.h>
+#include <constants.h>
+#include <mobj.h>
+#include <behavior.h>
+#include <animDescsRaw.h>
+#include <spritesRaw.h>
+#include <engine.h>
+
+__linked_list_head__(shot)
+
+__linked_list_head_getter__(shot)
+
+__doubly_linked_list_creator_add__(
+    shot,
+    (float x1, float y1, float z, float angle, mobj *src),
+        item->x1 = x1;
+        item->y1 = y1;
+        item->z = z;
+        item->x2 = x1 + (cosf(angle) * SHOT_LENGTH);
+        item->y2 = y1 + (sinf(angle) * SHOT_LENGTH);
+        item->angle = angle;
+        item->src = src;
+        item->x_spr_incr = (item->x2 - x1) / (SHOT_SPRITE_COUNT - 1);
+        item->y_spr_incr = (item->y2 - y1) / (SHOT_SPRITE_COUNT - 1);
+        item->x_mom = cosf(angle) * SHOT_SPEED;
+        item->y_mom = sinf(angle) * SHOT_SPEED
+)
+
+__doubly_linked_list_destroyer__(shot, /* no extra code */);
+
+__linked_list_destroy_all__(shot)
 
 #define try_mobj_hit(x, y) \
 float dist = point_dist(s->x1, s->y1, x, y); \
@@ -26,7 +57,7 @@ void shot_advance(shot *s) {
     float hit_dist = __FLT_MAX__;
     float hit_x, hit_y;
     mobj *hit_mobj = NULL;
-    for (mobj *o = mobj_head; o; o = o->next) {
+    for (mobj *o = get_mobj_head(); o; o = o->next) {
         // Only consider if shootable and not the source of the shot
         if (o == s->src || (o->flags & MF_SHOOTABLE) == 0) {
             continue;
@@ -192,11 +223,12 @@ void shot_advance(shot *s) {
 
     // Otherwise, make effect at wall
     if (result == RAY_HORIZHIT) {
-        char is_up = v.quadrant == 1 || v.quadrant == 2;
+        bool is_up = v.quadrant == 1 || v.quadrant == 2;
         particle_init(v.c_hx, (v.c_hy * GRID_SPACING), s->z, sprite_smoke, is_up ? 1 : 3);
     } else {
-        char is_right = v.quadrant == 1 || v.quadrant == 4;
+        bool is_right = v.quadrant == 1 || v.quadrant == 4;
         particle_init((v.c_vx * GRID_SPACING), v.c_vy, s->z, sprite_smoke, is_right ? 0 : 2);
     }
+
     shot_destroy(s);
 }

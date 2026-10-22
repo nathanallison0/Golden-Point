@@ -1,3 +1,22 @@
+#include <anim.h>
+#include <mobj.h>
+#include <sprites.h>
+#include <spritesRaw.h>
+#include <animDescsRaw.h>
+
+__linked_list_head__(anim)
+
+__linked_list_creator_add__(
+    anim,
+    (anim_type type, Uint16 anim_desc_index),
+        item->type = type;
+        item->frames = 0;
+        item->sub_frames = 0;
+        item->anim_desc_index = anim_desc_index
+)
+
+__linked_list_destroy_all__(anim)
+
 void anim_start(mobj *o, anim_type type, Uint16 desc_index) {
     // Destroy any existing animation
     if (o->animation) {

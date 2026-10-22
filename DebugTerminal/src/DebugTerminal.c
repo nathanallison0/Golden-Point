@@ -1,49 +1,43 @@
-#include <stdlib.h>
+#include "DebugTerminal.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
 
-// prefix should be the prefix of the terminal command, with no spaces.
-// Prefixes are case sensitive.
-typedef struct {
-    char* prefix;
-    void (*handler)(int, char**);
-} DT_Command;
+#define DT_CONSOLE_SIZE 1024
+char console_text[DT_CONSOLE_SIZE] = "";
 
-typedef struct {
-    const DT_Command* commands;
-    size_t num_commands;
-} DT_Interpreter;
-
-// Interpreter management
-DT_Interpreter* DT_CreateInterpreter(const DT_Command* commands, size_t num_commands) {
-    DT_Interpreter* interp = (DT_Interpreter *) malloc(sizeof(DT_Interpreter));
+DT_Interpreter *DT_CreateInterpreter(const DT_Command *commands, size_t num_commands) {
+    DT_Interpreter *interp = (DT_Interpreter *) malloc(sizeof(DT_Interpreter));
     interp->commands = commands;
     interp->num_commands = num_commands;
     return interp;
 }
 
-void DT_DestroyInterpreter(DT_Interpreter* interpreter) {
+void DT_DestroyInterpreter(DT_Interpreter *interpreter) {
     free(interpreter);
 }
 
-// Interpreter processes
-#define DT_CONSOLE_SIZE 1024
-
-char DT_console_text[DT_CONSOLE_SIZE] = "";
-
-void DT_ConsolePrint(char* text) {
-    strlcat(DT_console_text, text, sizeof(DT_console_text));
+const char *DT_GetConsole(void) {
+    return console_text;
 }
 
-void DT_ConsolePrintln(char* text) {
-    DT_ConsolePrint(text); DT_ConsolePrint("\n");
+void DT_ClearConsole(void) {
+    console_text[0] = '\0';
 }
 
-void DT_ConsolePrintf(const char* format, ...) {
+void DT_ConsolePrint(char *text) {
+    strlcat(console_text, text, sizeof(console_text));
+}
+
+void DT_ConsolePrintln(char *text) {
+    DT_ConsolePrint(text);
+    DT_ConsolePrint("\n");
+}
+
+void DT_ConsolePrintf(const char *format, ...) {
     va_list args;
     va_start(args, format);
-    char* final = NULL;
+    char *final = NULL;
 
     // Combine format and arguments
     vasprintf(&final, format, args);
@@ -56,7 +50,7 @@ void DT_ConsolePrintf(const char* format, ...) {
     va_end(args);
 }
 
-const DT_Command* DT_GetCommandByPrefix(DT_Interpreter* interpreter, char* prefix) {
+const DT_Command *DT_GetCommandByPrefix(DT_Interpreter *interpreter, char *prefix) {
     for (size_t i = 0; i < interpreter->num_commands; i++) {
         if (strcmp(interpreter->commands[i].prefix, prefix) == 0) {
             return interpreter->commands + i;
@@ -65,22 +59,21 @@ const DT_Command* DT_GetCommandByPrefix(DT_Interpreter* interpreter, char* prefi
     return (DT_Command *) NULL;
 }
 
-int DT_InterpretCommand(DT_Interpreter* interpreter, char* text) {
+int DT_InterpretCommand(DT_Interpreter *interpreter, char *text) {
     // Make a copy of the text for editing
     char command_text[strlen(text) + 1];
     strlcpy(command_text, text, sizeof(command_text));
 
     // Find first occurrence of a space character
-    char* first_space_loc = strchr(command_text, ' ');
+    char *first_space_loc = strchr(command_text, ' ');
 
     // If a space was found, set the found space to a terminating character
-    // so that the text before the space is effectively its own string
     if (first_space_loc) {
         *first_space_loc = '\0';
     }
 
     // Get the command with the prefix of the string we just got
-    const DT_Command* command = DT_GetCommandByPrefix(interpreter, command_text);
+    const DT_Command *command = DT_GetCommandByPrefix(interpreter, command_text);
 
     // If a command was matched to the prefix and there was no space,
     // run the command's interpreter function with no arguments
@@ -90,9 +83,9 @@ int DT_InterpretCommand(DT_Interpreter* interpreter, char* text) {
         } else {
             // If there was a space, get the arguments to the command by splitting
             // the original string and run its handler with the arguments
-            char* new_space_loc;
+            char *new_space_loc;
             int num_args = 0;
-            char** args = NULL;
+            char **args = NULL;
 
             while (1) {
                 // If this is the first iteration, set the new space location to the absolute second space
@@ -140,7 +133,7 @@ int DT_InterpretCommand(DT_Interpreter* interpreter, char* text) {
     return 0;
 }
 
-void DT_CombineArgs(char** cmd_args, int start_arg, int num_args, char sep) {
+void DT_CombineArgs(char **cmd_args, int start_arg, int num_args, char sep) {
     for (int i = 0; i < num_args - 1; i++) {
         cmd_args[start_arg + i][strlen(cmd_args[start_arg + i])] = sep;
     }

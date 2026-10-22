@@ -1,17 +1,6 @@
-#ifndef _GPOINT_IMAGES_H_
-#define _GPOINT_IMAGES_H_
-
-#include "../../../SDL/start/include/SDL3Start.h"
-
-#define get_graphics(g, x, y) g.pixels[((y) * g.width) + (x)]
-#define get_graphics_p(g, x, y) g->pixels[((y) * g->width) + (x)]
-
-typedef struct {
-    Uint16 width, height;
-    rgba *pixels;
-} image;
-
-extern image images[];
+#include <images.h>
+#include <imagesRaw.h>
+#include <constants.h>
 
 void draw_image(Uint16 index, int x, int y) {
     int end_x = min(x + images[index].width, WINDOW_WIDTH);
@@ -42,7 +31,3 @@ void draw_image_scale(Uint16 index, int x, int y, int scale) {
         image_y++;
     }
 }
-
-#define SKY_IMAGE images[image_sky]
-
-#endif

@@ -1,4 +1,7 @@
-#include "../../../SDL/start/include/SDL3Start.h"
+#ifndef _GPOINT_SPRITES_H_
+#define _GPOINT_SPRITES_H_
+
+#include <SDL3Start.h>
 
 #define NUM_ROT_SPRITE_FRAMES 8
 #define ROT_SPRITE_INCR ((M_PI * 2) / NUM_ROT_SPRITE_FRAMES)
@@ -11,4 +14,10 @@ typedef struct {
     rgba *pixels;
 } sprite;
 
-float sky_scale_x, sky_scale_y;
+float get_sky_scale_x(void);
+
+float get_sky_scale_y(void);
+
+void set_sky_scale(float x, float y);
+
+#endif

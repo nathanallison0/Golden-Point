@@ -1,62 +1,29 @@
+#include <debugging.h>
 #include <stdlib.h>
-#include "../../../SDL/start/include/SDL3Start.h"
-#include "../../DebugTerminal/DebugTerminal.h"
-#include "./SaveSTates.h"
 #include <string.h>
+#include <dirent.h>
+#include <SDL3Start.h>
+#include <DebugTerminal.h>
+#include <BasicFont.h>
+#include <SaveSTates.h>
+#include <engine.h>
+#include <constants.h>
+#include <SaveSTates.h>
 
-typedef unsigned char byte;
-
-struct temp_dgp {
-    float x;
-    float y;
-    byte color_index;
+const rgb DG_COLORS[] = {
+    C_WHITE,
+    C_YELLOW,
+    C_RED,
+    C_BLUE,
+    C_PURPLE,
+    C_GREEN,
+    C_BLACK
 };
 
-struct fill_dgp {
-    float x;
-    float y;
-    byte color_index;
-    struct fill_dgp *next;
-};
-
-typedef struct {
-    int x1, y1;
-    int x2, y2;
-    byte color_index;
-} dgl;
-
-void add_temp_dgp(float x, float y, byte color_index, size_t *num_dgps, struct temp_dgp **list);
-void add_fill_dgp(float x, float y, byte color_index, int *num_dgps, int max_dgps, struct fill_dgp **head, struct fill_dgp **tail);
-void add_dgl(int x1, int y1, int x2, int y2, byte color_index);
-#define temp_dgp(x, y, color_index) add_temp_dgp(x, y, color_index, &num_temp_dgps, &temp_dgp_list)
-#define fill_dgp(x, y, color_index) add_fill_dgp(x, y, color_index, &num_fill_dgps, max_fill_dgps, &fill_dgp_head, &fill_dgp_tail)
-void underscore_space(char *str);
-char str_num(char *str, float *dest);
-#define debug_print(var, format) printf(#var ": " format "\n", var)
-
-// Varlabels
-typedef struct {
-    char *label;
-    Uint8 *value;
-} char_varlabel;
-
-typedef struct {
-    char *label;
-    float *value;
-} flt_varlabel;
-
-Uint8 show_crosshair = FALSE;
-
-#define CHAR_VLS_LEN 16
 char_varlabel char_vls[CHAR_VLS_LEN] = {
-    {"grid cam follows player", &grid_follow_player},
-    {"show player vision",  &show_player_vision},
-    {"show player trail",  &show_player_trail},
     {"show grid lines",  &show_grid_lines},
     {"render walls",  &fp_show_walls},
     {"show mouse coords",  &show_mouse_coords},
-    {"grid casting",  &grid_casting},
-    {"debug prr",  &debug_prr},
     {"show fps", &show_fps},
     {"cap fps", &cap_fps},
     {"show weapon", &fp_show_weapon},
@@ -67,25 +34,78 @@ char_varlabel char_vls[CHAR_VLS_LEN] = {
     {"floor opt", &tester}
 };
 
-float sky_off = 0;
-
-#define FLT_VLS_LEN 4
 flt_varlabel flt_vls[FLT_VLS_LEN] = {
-    {"zoom", &fp_scale},
     {"sensitivity", &player_sensitivity},
     {"enemy range", &enemy_range},
     {"sky off", &sky_off}
 };
-
-// Terminal
-rgb terminal_bg = {0, 0, 0};
-rgba terminal_font_color = {84, 255, 84, 255};
-int terminal_font_size = WINDOW_HEIGHT / (BF_CHAR_HEIGHT * 30);
-#define TERMINAL_PROMPT " > "
 alstring *terminal_input;
 DT_Interpreter *terminal;
 
-static void CMD_echo(int num_args, char **args) {
+#define CMD_DIR_NAME "./cmd/"
+DIR *cmd_dir;
+
+rgb get_dg_color_rgb(DG_Color c) {
+    return DG_COLORS[c];
+}
+
+int num_fill_dgps = 0;
+int max_fill_dgps = FPS / 2;
+size_t num_temp_dgps = 0;
+fill_dgp *fill_dgp_head;
+fill_dgp *fill_dgp_tail;
+temp_dgp *temp_dgp_list = NULL;
+
+temp_dgp *get_temp_dgp(int index) {
+    return temp_dgp_list + index;
+}
+
+size_t get_num_temp_dgps(void) {
+    return num_temp_dgps;
+}
+
+void clear_temp_dgps(void) {
+    num_temp_dgps = 0;
+    temp_dgp_list = NULL;
+}
+
+fill_dgp *get_fill_dgp_head(void) {
+    return fill_dgp_head;
+}
+
+void underscore_space(char *str) {
+    char *index;
+    while ((index = strchr(str, '_'))) {
+        *index = ' ';
+    }
+}
+
+// Convert from string to number
+char str_num(char *str, float *dest) {
+    // Check for true or false
+    if (strcmp(str, "true") == 0) {
+        *dest = 1;
+        return TRUE;
+    }
+    if (strcmp(str, "false") == 0) {
+        *dest = 0;
+        return TRUE;
+    }
+
+    // Convert to float
+    float temp = atof(str);
+
+    // If zero was returned but the text is not zero,
+    // return failure
+    if (temp == 0 && str[0] != '0') {
+        return FALSE;
+    }
+
+    *dest = temp;
+    return TRUE;
+}
+
+void CMD_echo(int num_args, char **args) {
     if (num_args == 0) {
         DT_ConsolePrint(" ");
         return;
@@ -95,7 +115,7 @@ static void CMD_echo(int num_args, char **args) {
     DT_ConsolePrintln(args[0]);
 }
 
-static void CMD_set(int num_args, char **args) {
+void CMD_set(int num_args, char **args) {
     // If there are zero arguments, print all the variables
     if (num_args == 0) {
         for (int i = 0; i < CHAR_VLS_LEN; i++) {
@@ -165,7 +185,7 @@ static void CMD_set(int num_args, char **args) {
     }
 }
 
-static void CMD_state(int num_args, char **args) {
+void CMD_state(int num_args, char **args) {
     #if __EMSCRIPTEN__
     DT_ConsolePrintln("Feature unavailable");
     #else
@@ -195,10 +215,8 @@ static void CMD_state(int num_args, char **args) {
             } else {
                 DT_ConsolePrintln("Err expected 'add' [x y rot]");
             }
-        }
-
-        // Loading a state
-        else if (strcmp(args[0], "load") == 0) {
+        } else if (strcmp(args[0], "load") == 0) {
+            // Loading a state
             if (num_args == 2) {
                 float num;
                 if (str_num(args[1], &num)) {
@@ -209,10 +227,8 @@ static void CMD_state(int num_args, char **args) {
             } else {
                 DT_ConsolePrintln("Err expected 'load' and the number of the state to load");
             }
-        }
-
-        // Removing a state
-        else if (strcmp(args[0], "remove") == 0) {
+        } else if (strcmp(args[0], "remove") == 0) {
+            // Removing a state
             if (num_args == 2) {
                 float num;
                 if (str_num(args[1], &num)) {
@@ -237,10 +253,7 @@ static void CMD_state(int num_args, char **args) {
     #endif
 }
 
-#define CMD_DIR_NAME "./cmd/"
-static DIR *cmd_dir;
-
-static void CMD_run(int num_args, char **args) {
+void CMD_run(int num_args, char **args) {
     #if __EMSCRIPTEN__
     DT_ConsolePrintln("Feature unavailable");
     #else
@@ -286,46 +299,36 @@ static void CMD_run(int num_args, char **args) {
     #endif
 }
 
-static const DT_Command terminal_commands[] = {
-    {"echo", *CMD_echo},
-    {"set", *CMD_set},
-    {"state", *CMD_state},
-    {"run", *CMD_run}
+const DT_Command terminal_commands[] = {
+    {"echo", CMD_echo},
+    {"set", CMD_set},
+    {"state", CMD_state},
+    {"run", CMD_run}
 };
 
-// DGs
-static const rgb DG_COLORS[] = {
-    C_WHITE,
-    C_YELLOW,
-    C_RED,
-    C_BLUE,
-    C_PURPLE,
-    C_GREEN,
-    C_BLACK
-};
+char *get_terminal_input_text(void) {
+    return terminal_input->text;
+}
 
-enum dg_color_index {
-    DG_WHITE,
-    DG_YELLOW,
-    DG_RED,
-    DG_BLUE,
-    DG_PURPLE,
-    DG_GREEN,
-    DG_BLACK
-};
+void terminal_add_char(char c) {
+    alstring_append(terminal_input, c);
+}
 
-static int dgp_radius = 5;
-static int num_fill_dgps = 0;
-static int max_fill_dgps = FPS / 2;
-static size_t num_temp_dgps = 0;
-struct fill_dgp *fill_dgp_head;
-struct fill_dgp *fill_dgp_tail;
-struct temp_dgp *temp_dgp_list = NULL;
+void terminal_pop_char(void) {
+    alstring_pop(terminal_input);
+}
 
-dgl *dgl_list = NULL;
-size_t num_dgls = 0;
+void terminal_interpret_command(void) {
+    DT_ClearConsole();
+    
+    if (!DT_InterpretCommand(terminal, terminal_input->text)) {
+        DT_ConsolePrintln("Err no such command");
+    }
 
-void add_fill_dgp(float x, float y, byte color_index, int *num_dgps, int max_dgps, struct fill_dgp **head, struct fill_dgp **tail) {
+    alstring_clear(terminal_input);
+}
+
+void add_fill_dgp(float x, float y, DG_Color color_index, int *num_dgps, int max_dgps, struct fill_dgp **head, struct fill_dgp **tail) {
     struct fill_dgp *p = malloc(sizeof(*p));
     p->x = x;
     p->y = y;
@@ -348,65 +351,19 @@ void add_fill_dgp(float x, float y, byte color_index, int *num_dgps, int max_dgp
     }
 }
 
-void add_temp_dgp(float x, float y, byte color_index, size_t *num_dgps, struct temp_dgp **list) {
+void add_temp_dgp(float x, float y, DG_Color color_index, size_t *num_dgps, struct temp_dgp **list) {
     (*num_dgps)++;
     *list = realloc(*list, sizeof(struct temp_dgp) * *num_dgps);
     struct temp_dgp *p = *list + (*num_dgps - 1);
     p->x = x;
     p->y = y;
     p->color_index = color_index;
-    // printf("num_temp_dgps: %zu\n", num_temp_dgps);
-}
-
-void add_dgl(int x1, int y1, int x2, int y2, byte color_index) {
-    num_dgls++;
-    dgl_list = realloc(dgl_list, sizeof(dgl) * num_dgls);
-    dgl *p = dgl_list + (num_dgls - 1);
-    p->x1 = x1;
-    p->x2 = x2;
-    p->y1 = y1;
-    p->y2 = y2;
-    p->color_index = color_index;
-}
-
-void underscore_space(char *str) {
-    char *index;
-    while ((index = strchr(str, '_'))) {
-        *index = ' ';
-    }
-}
-
-// Convert from string to number
-char str_num(char *str, float *dest) {
-    // Check for true or false
-    if (strcmp(str, "true") == 0) {
-        *dest = 1;
-        return TRUE;
-    }
-    if (strcmp(str, "false") == 0) {
-        *dest = 0;
-        return TRUE;
-    }
-
-    // Convert to float
-    float temp = atof(str);
-
-    // If zero was returned but the text is not zero,
-    // return failure
-    if (temp == 0 && str[0] != '0') {
-        return FALSE;
-    }
-
-    *dest = temp;
-    return TRUE;
 }
 
 char check(char* msg) {
     puts(msg);
     return TRUE;
 }
-
-#define toggle(var) var = !var
 
 void init_debugging(void) {
     terminal = DT_CreateInterpreter(terminal_commands, sizeof(terminal_commands) / sizeof(DT_Command));
@@ -430,4 +387,19 @@ void init_debugging(void) {
 
 void debugging_end(void) {
     closedir(cmd_dir);
+    alstring_destroy(terminal_input);
+    DT_DestroyInterpreter(terminal);
+
+    // Clear fill dgps
+    fill_dgp *p = fill_dgp_head;
+    while (p) {
+        fill_dgp *next = p->next;
+        free(p);
+        p = next;
+    }
+
+    // Clear temp dgps
+    if (temp_dgp_list) {
+        free(temp_dgp_list);
+    }
 }

@@ -1,30 +1,15 @@
-#if __EMSCRIPTEN__
-#define import_sounds()
-#define init_sound()
-#define print_pos_sound(s)
-#define sound_clear_finished()
-#define sound_play_static(a, b)
-#define sound_update_pos_pan(a)
-#define sound_play_pos_static(a, b, c, d, e)
-#define sound_play_pos_mobj(a, b, c)
-#else
-#include <SDL3_mixer/SDL_mixer.h>
+#include <sounds.h>
 #include <stdio.h>
 #include <dirent.h>
+#include <engine.h>
 
-static MIX_Mixer *audio_mixer;
-static MIX_Track **tracks_to_destroy = NULL;
-static int num_tracks_to_destroy = 0;
+MIX_Mixer *audio_mixer;
+MIX_Track **tracks_to_destroy = NULL;
+int num_tracks_to_destroy = 0;
 
 MIX_Audio **sounds;
 int num_sounds = 0;
 #define SOUND_DIR "./sounds"
-
-enum {
-    sound_laser,
-    sound_door,
-    sound_enemyFlinch
-};
 
 void import_sounds(void) {
     DIR *sound_dir = opendir(SOUND_DIR);
@@ -34,7 +19,6 @@ void import_sounds(void) {
         while ((entry = readdir(sound_dir))) {
             // Don't handle . and ..
             if (entry->d_type != DT_DIR) {
-                //printf("loaded %s\n", entry->d_name);
                 num_sounds++;
                 sounds = realloc(sounds, num_sounds * sizeof(MIX_Audio *));
 
@@ -53,32 +37,14 @@ void import_sounds(void) {
     }
 }
 
-#define POS_SOUND_STATIC 0
-#define POS_SOUND_MOBJ 1
-
-__doubly_linked_list_init__(
-    pos_sound,
-        MIX_Track *track;
-        Uint8 type;
-        union {
-            mobj *obj;
-
-            struct {
-                float x;
-                float y;
-                float z;
-            } coords;
-        } pos;
-)
-
-__doubly_linked_list_head__(pos_sound)
+__linked_list_head__(pos_sound)
 
 __doubly_linked_list_destroyer__(
     pos_sound,
-    ; // no extra destroyer code
+    /* default destroyer */;
 )
 
-static void destroy_track_callback(void *data, MIX_Track *track) {
+void destroy_track_callback(void *data, MIX_Track *track) {
     num_tracks_to_destroy++;
     tracks_to_destroy = realloc(tracks_to_destroy, num_tracks_to_destroy * sizeof(MIX_Track *));
     tracks_to_destroy[num_tracks_to_destroy - 1] = track;
@@ -89,7 +55,7 @@ static void destroy_track_callback(void *data, MIX_Track *track) {
     }
 }
 
-static MIX_Track *create_singleuse_track(MIX_Audio *audio, float gain, pos_sound *pos_sound_data) {
+MIX_Track *create_singleuse_track(MIX_Audio *audio, float gain, pos_sound *pos_sound_data) {
     MIX_Track *track = MIX_CreateTrack(audio_mixer);
 
     // If this is a positional sound, give reference to structure in callback
@@ -151,6 +117,12 @@ void sound_update_pos_pan(pos_sound *s) {
     });
 }
 
+void update_sounds_pos_pan(void) {
+    for (pos_sound *s = pos_sound_head; s; s = s->next) {
+        sound_update_pos_pan(s);
+    }
+}
+
 void sound_play_pos_static(int sound_index, float gain, float x, float y, float z) {
     pos_sound *p_sound = pos_sound_create(sounds[sound_index], gain);
 
@@ -168,4 +140,3 @@ void sound_play_pos_mobj(int sound_index, float gain, mobj *obj) {
     p_sound->pos.obj = obj;
     sound_update_pos_pan(p_sound);
 }
-#endif

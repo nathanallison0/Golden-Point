@@ -1,5 +1,6 @@
-#ifndef _GPOINT_SPRITESRAW_H_
-#define _GPOINT_SPRITESRAW_H_
+#include <spritesRaw.h>
+#include <sprites.h>
+
 sprite sprites[] = {
 	#if !__VSCODE__
 	{100, 100, 0.025, -0.5, 0, (rgba[]) {
@@ -85,11 +86,3 @@ sprite sprites[] = {
 	}}
 	#endif
 };
-#define sprite_laserShot 0
-#define sprite_smoke 1
-#define sprite_plant 2
-#define sprite_boxShaded 3
-#define sprite_boxHit 11
-
-// loaded 27 sprites
-#endif

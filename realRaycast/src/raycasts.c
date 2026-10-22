@@ -1,20 +1,7 @@
-typedef struct {
-    door *door;
-    float x;
-    float y;
-} door_hit_info;
-
-typedef struct {
-    char quadrant;
-    float c_hx; int c_hy;
-    float d_hx; char d_hy;
-    int c_vx; float c_vy;
-    char d_vx; float d_vy;
-    float c_epsilon_h, d_epsilon_h;
-    float c_epsilon_v, d_epsilon_v;
-    door_hit_info door_hit;
-    float texture_offset;
-} raycast_info;
+#include <raycasts.h>
+#include <constants.h>
+#include <textures.h>
+#include <engine.h>
 
 #define c_hx        v->c_hx
 #define c_hy        v->c_hy
@@ -29,6 +16,7 @@ typedef struct {
 #define c_epsilon_v v->c_epsilon_v
 #define d_epsilon_v v->d_epsilon_v
 #define quadrant v->quadrant
+
 void raycast_vars(float x, float y, float angle, raycast_info *v) {
     quadrant = (char) ((angle < 0 ? angle + (PI * 2) : angle) / PI_2) + 1;
     
@@ -93,10 +81,6 @@ void raycast_vars(float x, float y, float angle, raycast_info *v) {
 #define bounds_y_int(y) (0 < (y) && (y) < GRID_HEIGHT)
 
 Uint8 step_ray_h(raycast_info *v) {
-    if (show_player_vision) {
-        temp_dgp(c_hx, c_hy * GRID_SPACING, DG_BLUE);
-    }
-
     float rel_wall_hit_h = fmodf(c_hx, GRID_SPACING);
     if (!bounds_x(c_hx) || !bounds_y_int(c_hy)) {
         return 0;
@@ -192,9 +176,6 @@ Uint8 step_ray_h(raycast_info *v) {
 }
 
 Uint8 step_ray_v(raycast_info *v) {
-    if (show_player_vision) {
-        temp_dgp(c_vx * GRID_SPACING, c_vy, DG_GREEN);
-    }
     if (!(
         (bounds_x_int(c_vx) && bounds_y(c_vy)) && !(
             ( get_map(c_vx - 1, (c_vy - (c_epsilon_v / 2)) / GRID_SPACING) || get_map(c_vx - 1, (c_vy + (c_epsilon_v / 2)) / GRID_SPACING) ) ||
@@ -216,7 +197,7 @@ xy raycast(float x, float y, float angle, raycast_info *v, int *texture_index, i
     
     if (point_dist(c_hx, c_hy * GRID_SPACING, x, y) < point_dist(c_vx * GRID_SPACING, c_vy, x, y)) {
         if (texture_index) {
-            *texture_index = horiz_textures[c_hy][(int) (c_hx / GRID_SPACING)];
+            *texture_index = get_horiz_texture((int) (c_hx / GRID_SPACING), c_hy);
         }
 
         if (texture_col) {
@@ -237,7 +218,7 @@ xy raycast(float x, float y, float angle, raycast_info *v, int *texture_index, i
         return (xy) {c_hx, c_hy * GRID_SPACING};
     } else {
         if (texture_index) {
-            *texture_index = vertical_textures[(int) c_vy / GRID_SPACING][c_vx];
+            *texture_index = get_vert_texture(c_vx, (int) c_vy / GRID_SPACING);
         }
         if (texture_col) {
             *texture_col = (fmodf(c_vy, GRID_SPACING) / GRID_SPACING) * TEXTURE_WIDTH;
@@ -293,15 +274,6 @@ Uint8 raycast_to_v(int x_to, raycast_info *v) {
         }
     }
 }
-
-enum {
-    RAY_NOHIT,
-    RAY_HORIZHIT,
-    RAY_VERTHIT
-};
-typedef Uint8 ray_hit;
-
-#define RAY_SUCCESS 0
 
 int raycast_get_x_to(float x, raycast_info *v) {
     if (v->quadrant == 1 || v->quadrant == 4) {

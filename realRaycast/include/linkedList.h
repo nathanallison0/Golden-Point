@@ -1,6 +1,15 @@
+#ifndef _GPOINT_LLIST_H_
+#define _GPOINT_LLIST_H_
+
 #define __linked_list_init__(typename, attributes) \
-typedef struct typename {struct typename* next; attributes; } typename; \
-typename *typename##_head = NULL;
+typedef struct typename {struct typename* next; attributes; } typename;
+
+#define __linked_list_head__(typename) typename *typename##_head = NULL;
+
+#define __linked_list_head_getter__(typename) \
+typename *get_##typename##_head(void) { \
+    return typename##_head; \
+}
 
 #define __linked_list_creator__(typename, arguments, set_attrs) \
 typename *typename##_create arguments { \
@@ -48,15 +57,15 @@ void typename##_destroy_all(typename *head) { \
 
 #define __linked_list_all_add__(typename, attributes, creator_arguments, creator_set_attrs) \
 __linked_list_init__(typename, attributes) \
+__linked_list_head__(typename) \
 __linked_list_creator_add__(typename, creator_arguments, creator_set_attrs) \
 __linked_list_destroy_all__(typename)
 
 #define __linked_list_all__(typename, attributes, creator_arguments, creator_set_attrs) \
 __linked_list_init__(typename, attributes) \
+__linked_list_head__(typename) \
 __linked_list_creator__(typename, creator_arguments, creator_set_attrs) \
 __linked_list_destroy_all__(typename)
-
-#define __doubly_linked_list_head__(typename) typename *typename##_head = NULL;
 
 #define __doubly_linked_list_init__(typename, attributes) \
 typedef struct typename {struct typename *next; struct typename *prev; attributes; } typename;
@@ -110,7 +119,9 @@ __linked_list_destroy_all_head__(typename)
 
 #define __doubly_linked_list_all_add__(typename, attributes, creator_arguments, creator_set_attrs, destroyer_code) \
 __doubly_linked_list_init__(typename, attributes) \
-__doubly_linked_list_head__(typename) \
+__linked_list_head__(typename) \
 __doubly_linked_list_creator_add__(typename, creator_arguments, creator_set_attrs) \
 __doubly_linked_list_destroyer__(typename, destroyer_code) \
 __linked_list_destroy_all__(typename)
+
+#endif

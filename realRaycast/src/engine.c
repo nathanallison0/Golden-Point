@@ -1,7 +1,25 @@
+#include <engine.h>
 #include <math.h>
 #include <string.h>
 #include <dirent.h>
 #include <time.h>
+#include <SDL3Start.h>
+#include <constants.h>
+#include <debugging.h>
+#include <linkedList.h>
+#include <textures.h>
+#include <images.h>
+#include <sprites.h>
+#include <map.h>
+#include <raycasts.h>
+#include <mobj.h>
+#include <sounds.h>
+#include <behavior.h>
+#include <shot.h>
+#include <spritesRaw.h>
+#include <DebugTerminal.h>
+#include <pathfind.h>
+#include <BasicFont.h>
 
 // Web integration
 #if __EMSCRIPTEN__
@@ -10,56 +28,10 @@
 #include <SDL3_mixer/SDL_mixer.h>
 #endif
 
-#define FALSE 0
-#define TRUE 1
-
-#if __EMSCRIPTEN__
-#define WINDOW_SCALE 40
-#else
-#define WINDOW_SCALE 80
-#endif
-
-#define WINDOW_WIDTH (16 * WINDOW_SCALE)
-#define WINDOW_HEIGHT (9 * WINDOW_SCALE)
-
-#define FPS 60
-#define FRAME_TARGET_TIME (1000 / FPS)
-
 #define SCHOOL_APPROPRIATE TRUE
-
-#define GRID_SPACING 64
-#define GS GRID_SPACING
-#define GRID_SPACING_2 (GS / 2)
-#define coord_to_grid(x) ((int) x / GRID_SPACING)
-#define WORLDSPACE ((float) GRID_SPACING / WINDOW_HEIGHT)
-
-#define assert(x) if (!(x)) { printf("assertion error on line %d - " #x ": '%s'\n", __LINE__, SDL_GetError()); exit(1); }
-
-// Custom SDL graphics functions
-// draw_rect(), etc.
-#include "../../../SDL/start/include/SDL3Start.h"
 
 #define APPLY_BLUR FALSE
 Uint8 aa_level = 1;
-
-#define free(x) SDL_free(x)
-#define malloc(x) SDL_malloc(x)
-#define realloc(x, y) SDL_realloc(x, y)
-
-// Font
-#include "../../BasicFont/include/BasicFont.h"
-
-// Linked list generation
-#include "linkedList.h"
-
-// Textures
-#include "textures.h"
-
-#include "images.h"
-#include "imagesRaw.h"
-
-#include "sprites.h"
-#include "spritesRaw.h"
 
 #if SCHOOL_APPROPRIATE
 #define sprite_shot sprite_laserShot
@@ -72,13 +44,6 @@ Uint8 aa_level = 1;
 #define SPRITES TRUE
 #define SLOW_LIGHTING FALSE
 
-#define fix_angle_360(angle) { if (angle < 0) angle += PI * 2; else if (angle >= PI * 2) angle -= PI * 2; }
-#define fix_angle_180(angle) { if (angle < -PI) angle += PI * 2; else if (angle >= PI) angle -= PI * 2; }
-
-#define range(left, sym1, var, sym2, right) (left sym1 var && var sym2 right)
-
-#include "structs.h"
-
 typedef struct {
     float x, y;
     char left, right;
@@ -87,7 +52,7 @@ typedef struct {
 bool game_is_running;
 
 // User Input Variables
-int shift = FALSE;
+int shift_pressed = FALSE;
 mouse_s mouse = {0, 0, 0, 0};
 mouse_s prev_mouse;
 char horizontal_input;
@@ -149,13 +114,6 @@ void toggle_terminal_view(void) {
     }
 }
 
-typedef struct {
-    float x;
-    float y;
-} xy;
-
-#include "map.h"
-
 #if __EMSCRIPTEN__
 Uint8 show_fps = FALSE;
 #else
@@ -171,6 +129,7 @@ rgb grid_fill_nonsolid = {235, 235, 235};
 rgb grid_fill_solid = {100, 110, 100};
 int grid_line_width = 1;
 rgb grid_line_fill = C_BLACK;
+int dgp_radius = 5;
 #define GRID_DOOR_THICKNESS 4
 Uint8 show_grid_lines = FALSE;
 // Grid Visual Camera
@@ -184,8 +143,6 @@ float grid_cam_center_x;
 float grid_cam_center_y;
 Uint8 show_mouse_coords = FALSE;
 float grid_mouse_x, grid_mouse_y;
-Uint8 grid_casting = FALSE;
-Uint8 debug_prr = FALSE;
 
 // Player
 mobj *player;
@@ -211,11 +168,11 @@ float player_sensitivity = 0.15f;
 float player_sensitivity = 0.0675f;
 #endif
 #define PLAYER_START_HEALTH 100
-int player_health = PLAYER_START_HEALTH;
+int player_health;
 #define SOUND_TRAVEL_DIST (GRID_SPACING * 10)
 
 // Player interactions
-#define KEY_OPEN_DOOR SDL_SCANCODE_E
+#define KEY_OPEN_DOOR E
 #define OPEN_DOOR_DIST (GRID_SPACING * 2.5f)
 #define DOOR_SPEED 100
 
@@ -223,8 +180,6 @@ int player_health = PLAYER_START_HEALTH;
 int grid_player_pointer_dist = 10;
 rgb grid_player_fill = {255, 50, 50};
 Uint8 grid_follow_player = TRUE;
-Uint8 show_player_vision = FALSE;
-Uint8 show_player_trail = FALSE;
 
 // Grid mobjs
 int grid_mobj_radius = 7;
@@ -233,13 +188,20 @@ int grid_mobj_radius = 7;
 float fp_scale = 1 / 0.009417f;
 #define FP_RENDER_DISTANCE 2000
 #define FP_BRIGHTNESS 0.9f
+float sky_off = 0;
 
+Uint8 show_crosshair = FALSE;
 Uint8 tester = TRUE;
 float fp_brightness_appl;
 Uint8 fp_show_walls = TRUE;
 int pixel_fov_circumference;
 float radians_per_pixel;
 Uint8 fp_show_weapon = TRUE;
+
+rgb terminal_bg = {0, 0, 0};
+rgba terminal_font_color = {84, 255, 84, 255};
+int terminal_font_size = WINDOW_HEIGHT / (BF_CHAR_HEIGHT * 30);
+#define TERMINAL_PROMPT " > "
 
 float weapon_cycle_progress = 0;
 #if __EMSCRIPTEN__
@@ -262,6 +224,7 @@ float weapon_cycle_progress = 0;
 #define HEALTH_BAR_FG C_GREEN
 
 Uint8 do_enemies = TRUE;
+float enemy_range = 15 * GRID_SPACING;
 #define WIN_MSG "you won! r to reset"
 Uint8 win_msg_len;
 int win_msg_x;
@@ -295,8 +258,6 @@ __linked_list_all__(
         item->angle = angle;
         item->sprite_num = sprite_num
 )
-
-#include "./debugging.h"
 
 // Grid Graphics
 #define grid_adj_x(x) ((x - grid_cam_x) * grid_cam_zoom)
@@ -345,7 +306,6 @@ void g_draw_text_rgb(char *text, int x, int y, int font_size, int wrap_length, r
     );
 }
 
-// First person rendering
 float point_dist(float x1, float y1, float x2, float y2) {
     return sqrtf(powf(x1 - x2, 2) + powf(y1 - y2, 2));
 }
@@ -432,17 +392,13 @@ float get_angle_to_player(float x, float y) {
     return get_angle_to(x, y, player->x, player->y);
 }
 
-#include "raycasts.h"
-#include "mobj.h"
-#include "sounds.h"
-#include "behavior.h"
-
 void reset_enemies(void) {
     defeated_enemies = 0;
+    player_health = PLAYER_START_HEALTH;
 
     // Destroy all smart enemies
     mobj *next;
-    for (mobj *o = mobj_head; o; o = next) {
+    for (mobj *o = get_mobj_head(); o; o = next) {
         next = o->next;
         if (o->type == MOBJ_SMART_ENEMY) {
             smart_enemy_destroy(o);
@@ -455,6 +411,10 @@ void reset_enemies(void) {
     }
 }
 
+void create_assign_player(void) {
+    player = mobj_create(MOBJ_NOTYPE, PLAYER_START_X, PLAYER_START_Y, PLAYER_START_Z, PLAYER_START_ANGLE, PLAYER_RADIUS, 0, MF_SHOOTABLE);
+}
+
 void reset(void) {
     // Reset player
     player->x = PLAYER_START_X;
@@ -463,7 +423,6 @@ void reset(void) {
     player_x_velocity = 0;
     player_y_velocity = 0;
     player->angle = PLAYER_START_ANGLE;
-    player_health = PLAYER_START_HEALTH;
     weapon_cycle_progress = 0;
     idle = TRUE;
 
@@ -471,7 +430,7 @@ void reset(void) {
 
     // Reset enemies
     /* defeated_enemies = 0;
-    for (mobj *o = mobj_head; o; o = o->next) {
+    for (mobj *o = get_mobj_head(); o; o = o->next) {
         if (o->type == MOBJ_ENEMY) {
             __def_extra_var(enemy, o);
             extra->health = ENEMY_HEALTH;
@@ -480,8 +439,6 @@ void reset(void) {
         }
     } */
 }
-
-#include "shot.h"
 
 void add_sprite_proj_a(float x, float y, float z, float angle_to, Uint16 sprite_num) {
     float distance = fp_dist(x, y, angle_to);
@@ -596,8 +553,7 @@ void setup(void) {
 
     pixel_fov_circumference = (WINDOW_WIDTH / fov) * (PI * 2);
     radians_per_pixel = fov / WINDOW_WIDTH;
-    sky_scale_x = (float) SKY_IMAGE.width / pixel_fov_circumference;
-    sky_scale_y = (float) SKY_IMAGE.height / (WINDOW_HEIGHT / 2);
+    set_sky_scale((float) SKY_IMAGE.width / pixel_fov_circumference, (float) SKY_IMAGE.height / (WINDOW_HEIGHT / 2));
 
     win_msg_len = strlen(WIN_MSG);
     win_msg_x = (WINDOW_WIDTH - (win_msg_len * (float) (BF_CHAR_WIDTH * WIN_MSG_SCALE))) / 2;
@@ -608,7 +564,7 @@ void setup(void) {
 
     reset_grid_cam();
     calc_grid_cam_center();
-    enter_grid_view();
+    enter_fps_view();
     
     create_assign_player();
 
@@ -618,10 +574,10 @@ void setup(void) {
     mobj_create(MOBJ_NOTYPE, 16 * GS, 12 * GS, 0, 0, 0, sprite_plant, 0);
 }
 
-#define key_pressed(key) state[key]
 #define key(x) SDL_SCANCODE_##x
 bool prev_state[SDL_SCANCODE_COUNT];
-#define key_just_pressed(scancode) (state[scancode] && !prev_state[scancode])
+#define key_pressed(k) state[key(k)]
+#define key_just_pressed(k) (state[key(k)] && !prev_state[key(k)])
 
 void process_input(void) {
     vertical_input = 0;
@@ -668,27 +624,27 @@ void process_input(void) {
         }
     }
 
-    shift = state[SDL_SCANCODE_LSHIFT] || state[SDL_SCANCODE_RSHIFT];
+    shift_pressed = key_pressed(LSHIFT) || key_pressed(RSHIFT);
 
     if (state[SDL_SCANCODE_ESCAPE]) game_is_running = FALSE;
-    if (key_just_pressed(key(0))) paused = !paused;
+    if (key_just_pressed(0)) paused = !paused;
 
-    if (key_just_pressed(SDL_SCANCODE_SLASH)) {
+    if (key_just_pressed(SLASH)) {
         toggle_terminal_view();
     }
 
     if (view == VIEW_FPS || view == VIEW_GRID) {
-        if (key_just_pressed(SDL_SCANCODE_2)) enter_grid_view();
-        if (key_just_pressed(SDL_SCANCODE_1)) enter_fps_view();
+        if (key_just_pressed(2)) enter_grid_view();
+        if (key_just_pressed(1)) enter_fps_view();
 
-        if (state[SDL_SCANCODE_RIGHT]) rotation_input++;
-        if (state[SDL_SCANCODE_LEFT]) rotation_input--;
+        if (key_pressed(RIGHT)) rotation_input++;
+        if (key_pressed(LEFT)) rotation_input--;
 
-        if (key_just_pressed(key(R))) {
+        if (key_just_pressed(R)) {
             reset();
         }
 
-        if (key_just_pressed(key(U)) && view == VIEW_FPS) {
+        if (key_just_pressed(U) && view == VIEW_FPS) {
             fps_free_mouse = !fps_free_mouse;
             if (fps_free_mouse) {
                 unfocus_mouse();
@@ -705,8 +661,8 @@ void process_input(void) {
         if (state[SDL_SCANCODE_UP]) player->z++;
         if (state[SDL_SCANCODE_DOWN]) player->z--;
 
-        if (view == VIEW_GRID && key_just_pressed(key(M))) {
-            toggle(grid_follow_player);
+        if (view == VIEW_GRID && key_just_pressed(M)) {
+            grid_follow_player = !grid_follow_player;
         }
 
         if (player->z < 0) {
@@ -715,17 +671,17 @@ void process_input(void) {
             player->z = GRID_SPACING;
         }
 
-        if (key_just_pressed(key(EQUALS))) {
+        if (key_just_pressed(EQUALS)) {
             aa_level++;
         }
-        if (key_just_pressed(key(MINUS)) && aa_level > 1) {
+        if (key_just_pressed(MINUS) && aa_level > 1) {
             aa_level--;
         }
         
         // Shots
         if (
-            (view == VIEW_FPS && (click(left) || key_just_pressed(key(SPACE)))) ||
-            (view == VIEW_GRID && key_just_pressed(key(SPACE)))
+            (view == VIEW_FPS && (click(left) || key_just_pressed(SPACE))) ||
+            (view == VIEW_GRID && key_just_pressed(SPACE))
         ) {
             // Shoot
             shot_create(
@@ -740,7 +696,7 @@ void process_input(void) {
             sound_play_static(sound_laser, 0.25f);
 
             // Attract enemies
-            for (mobj *o = mobj_head; o; o = o->next) {
+            for (mobj *o = get_mobj_head(); o; o = o->next) {
                 if (o->type == MOBJ_SMART_ENEMY) {
                     // Only check sound travel if they are within the distance radius
                     // and are not already attacking
@@ -791,27 +747,22 @@ void process_input(void) {
         // If the shift key is pressed, look for a shifted character corresponding
         // with the key pressed and use if found
         // (only characters used in the font are included in BF_CHAR_KEYS)
-        if (shift) {
+        if (shift_pressed) {
             char new_key = BF_GetUpperCharKey(key);
             if (new_key != -1) {
-                alstring_append(terminal_input, new_key);
+                terminal_add_char(new_key);
             }
         } else if (key == ' ' || BF_GetCharIndex(key) != -1) {
             // If the key is space or in the character set, add it to the input string
-            alstring_append(terminal_input, key);
-        } else if (state[SDL_SCANCODE_BACKSPACE]) {
+            terminal_add_char(key);
+        } else if (key_pressed(BACKSPACE)) {
             // If backspace is pressed, delete
-            alstring_pop(terminal_input);
+            terminal_pop_char();
         }
 
         // If return key pressed and there is text, interpret input text as command
-        if (state[SDL_SCANCODE_RETURN]) {
-            DT_console_text[0] = '\0';
-            // If command was not found, print error message
-            if (!DT_InterpretCommand(terminal, terminal_input->text)) {
-                DT_ConsolePrintln("Err no such command");
-            }
-            alstring_clear(terminal_input);
+        if (key_pressed(RETURN)) {
+            terminal_interpret_command();
         }
     }
 
@@ -839,14 +790,12 @@ void update(void) {
 
     // Perform mobj behavior and animation
     mobj *m_next;
-    for (mobj *o = mobj_head; o; o = m_next) {
+    for (mobj *o = get_mobj_head(); o; o = m_next) {
         m_next = o->next;
-        if (mobj_behaviors[o->type]) {
-            mobj_behaviors[o->type](o);
-        }
+        mobj_behave(o);
     }
 
-    for (mobj *o = mobj_head; o; o = m_next) {
+    for (mobj *o = get_mobj_head(); o; o = m_next) {
         m_next = o->next;
         if (o->animation) {
             anim_advance(o);
@@ -855,7 +804,7 @@ void update(void) {
 
     // Update doors
     for (int i = 0; i < NUM_DOORS; i++) {
-        door *d = doors + i;
+        door *d = get_door(i);
         if (d->flags & DOORF_MOVING) {
             d->progress += (d->flags & DOORF_OPENING ? DOOR_SPEED : -DOOR_SPEED) * delta_time;
             
@@ -1029,13 +978,9 @@ void update(void) {
 
     // Move shots
     shot *next;
-    for (shot *s = shot_head; s; s = next) {
+    for (shot *s = get_shot_head(); s; s = next) {
         next = s->next;
         shot_advance(s);
-    }
-
-    if (show_player_trail) {
-        fill_dgp(player->x, player->y, DG_YELLOW);
     }
 
     if (grid_follow_player) {
@@ -1048,9 +993,7 @@ void update(void) {
     // Update positional sounds
     #if !__EMSCRIPTEN__
     if (frames % 5 == 0) {
-        for (pos_sound *s = pos_sound_head; s; s = s->next) {
-            sound_update_pos_pan(s);
-        }
+        update_sounds_pos_pan();
     }
     #endif
 
@@ -1066,7 +1009,7 @@ void update(void) {
 void render(void) {
     clear_renderer();
 
-    if ((view == VIEW_FPS && fp_show_walls) || show_player_vision || grid_casting) { // Raycasting
+    if (view == VIEW_FPS && fp_show_walls) { // Raycasting
         float ray_dists[WINDOW_WIDTH];
         float *floor_side_dists = NULL;
         int floor_side_dists_len = 0;
@@ -1113,7 +1056,7 @@ void render(void) {
 
             float aa_worlspace_incr = WORLDSPACE / (aa_level + 1);
 
-            if ((view == VIEW_FPS && fp_show_walls) || grid_casting) {
+            if (view == VIEW_FPS && fp_show_walls) {
                 // Get hit distance
                 ray_dists[ray_i] = fp_dist(hit.x, hit.y, ray_angle);
 
@@ -1183,7 +1126,7 @@ void render(void) {
                                 float point_x = (angle_cos * straight_dist) + player->x;
                                 float point_y = (angle_sin * straight_dist) + player->y;
 
-                                Uint8 texture_num = floor_textures[(int) point_y / GRID_SPACING][(int) point_x / GRID_SPACING];
+                                Uint8 texture_num = get_floor_texture((int) point_x / GRID_SPACING, (int) point_y / GRID_SPACING);
                                 
                                 // If we are drawing the sky texture
                                 if (texture_num == 0) {
@@ -1192,7 +1135,7 @@ void render(void) {
                                         sky_x -= pixel_fov_circumference;
                                     }
 
-                                    rgba color = get_graphics(SKY_IMAGE, (int) (sky_x * sky_scale_x), (int) (pixel_y * sky_scale_y));
+                                    rgba color = get_graphics(SKY_IMAGE, (int) (sky_x * get_sky_scale_x()), (int) (pixel_y * get_sky_scale_y()));
                                     //set_pixel_rgba(ray_i, WINDOW_HEIGHT - pixel_y - 1, color);
                                     r_sum_floor += color.r;
                                     g_sum_floor += color.g;
@@ -1220,7 +1163,7 @@ void render(void) {
                                 float point_x = (angle_cos * straight_dist) + player->x;
                                 float point_y = (angle_sin * straight_dist) + player->y;
 
-                                Uint8 texture_num = ceiling_textures[(int) point_y / GRID_SPACING][(int) point_x / GRID_SPACING];
+                                Uint8 texture_num = get_ceil_texture((int) point_x / GRID_SPACING, (int) point_y / GRID_SPACING);
                                 
                                 // If we are drawing the sky texture
                                 if (texture_num == 0) {
@@ -1229,7 +1172,7 @@ void render(void) {
                                         sky_x -= pixel_fov_circumference;
                                     }
 
-                                    rgba color = get_graphics(SKY_IMAGE, (int) (sky_x * sky_scale_x), (int) (pixel_y * sky_scale_y));
+                                    rgba color = get_graphics(SKY_IMAGE, (int) (sky_x * get_sky_scale_x()), (int) (pixel_y * get_sky_scale_y()));
                                     r_sum_ceil += color.r;
                                     g_sum_ceil += color.g;
                                     b_sum_ceil += color.b;
@@ -1286,14 +1229,14 @@ void render(void) {
         }
 
         #if SPRITES
-        if (view == VIEW_FPS || grid_casting) {
+        if (view == VIEW_FPS) {
             // Store positions and distances of sprites on screen sorted by distance
-            for (mobj *o = mobj_head; o; o = o->next) {
+            for (mobj *o = get_mobj_head(); o; o = o->next) {
                 add_sprite_proj_mobj(o);
             }
 
             // Give sprites to shots
-            for (shot *s = shot_head; s; s = s->next) {
+            for (shot *s = get_shot_head(); s; s = s->next) {
                 float x = s->x1;
                 float y = s->y1;
                 for (int i = 0; i < SHOT_SPRITE_COUNT; i++) {
@@ -1427,7 +1370,7 @@ void render(void) {
                     case TILE_HORIZ_DOOR:
                         g_draw_rect_rgb(col * GRID_SPACING, row * GRID_SPACING, GRID_SPACING, GRID_SPACING, grid_fill_nonsolid);
                         if (space == TILE_HORIZ_DOOR) {
-                            door *door = get_door(col, row);
+                            door *door = get_door_tile(col, row);
                             float progress;
                             if (door) {
                                 progress = door->progress;
@@ -1471,19 +1414,8 @@ void render(void) {
             }
         }
 
-        // Smart enemy watchpoints
-        for (int i = 0; i < NUM_SE_WATCHPOINTS; i++) {
-            se_watchpoint *p = se_watchpoints + i;
-            g_draw_scale_point_rgb(
-                p->x * GRID_SPACING + GRID_SPACING_2,
-                p->y * GRID_SPACING + GRID_SPACING_2,
-                5,
-                p->occupied ? C_ORANGE : C_PURPLE
-            );
-        }
-
         // Map objects
-        for (mobj *temp = mobj_head; temp; temp = temp->next) {
+        for (mobj *temp = get_mobj_head(); temp; temp = temp->next) {
             g_draw_scale_point_rgb(temp->x, temp->y, temp->radius, grid_mobj_color);
             g_draw_scale_point_rgb(
                 temp->x + (cosf(temp->angle) * temp->radius),
@@ -1494,14 +1426,14 @@ void render(void) {
         }
 
         // Shots
-        for (shot *s = shot_head; s; s = s->next) {
+        for (shot *s = get_shot_head(); s; s = s->next) {
             g_draw_scale_point_rgb(s->x1, s->y1, 2.5f, C_ORANGE);
             g_draw_scale_point_rgb(s->x2, s->y2, 3, C_ORANGE);
         }
 
         // Fill debug grid points
-        for (struct fill_dgp *p_i = fill_dgp_head; p_i; p_i = p_i->next) {
-            g_draw_point_rgb(p_i->x, p_i->y, dgp_radius, DG_COLORS[p_i->color_index]);
+        for (struct fill_dgp *p_i = get_fill_dgp_head(); p_i; p_i = p_i->next) {
+            g_draw_point_rgb(p_i->x, p_i->y, dgp_radius, get_dg_color_rgb(p_i->color_index));
         }
 
         // Player direction pointer
@@ -1515,10 +1447,13 @@ void render(void) {
         g_draw_scale_point_rgb(player->x, player->y, player->radius, grid_player_fill);
 
         // Temporary debug grid points
-        for (size_t i = 0; i < num_temp_dgps; i++) {
-            g_draw_point_rgb(temp_dgp_list[i].x, temp_dgp_list[i].y, 
-                dgp_radius * (temp_dgp_list[i].color_index == DG_BLUE ? 1.5f : 1),
-                DG_COLORS[temp_dgp_list[i].color_index]);
+        for (size_t i = 0; i < get_num_temp_dgps(); i++) {
+            g_draw_point_rgb(
+                get_temp_dgp(i)->x,
+                get_temp_dgp(i)->y, 
+                dgp_radius,
+                get_dg_color_rgb(get_temp_dgp(i)->color_index)
+            );
         }
 
         if (show_mouse_coords) {
@@ -1581,13 +1516,13 @@ void render(void) {
 
     } else if (view == VIEW_TERMINAL) { // Terminal view
         // Output from previous command
-        BF_DrawText(DT_console_text, 0, 0, terminal_font_size, WINDOW_WIDTH, terminal_font_color, FALSE);
+        BF_DrawText((char *) DT_GetConsole(), 0, 0, terminal_font_size, WINDOW_WIDTH, terminal_font_color, FALSE);
     
         // Prompt string
         BF_FillText(TERMINAL_PROMPT, terminal_font_size, WINDOW_WIDTH, terminal_font_color, FALSE);
 
         // Input text
-        BF_FillText(terminal_input->text, terminal_font_size, WINDOW_WIDTH, terminal_font_color, TRUE);
+        BF_FillText(get_terminal_input_text(), terminal_font_size, WINDOW_WIDTH, terminal_font_color, TRUE);
     }
 
     // FPS readout
@@ -1600,8 +1535,7 @@ void render(void) {
     }
 
     // Clear dg things
-    num_temp_dgps = 0;
-    num_dgls = 0;
+    clear_temp_dgps();
 
     #if APPLY_BLUR
     for (int row = 0; row < WINDOW_HEIGHT; row += 2) {
@@ -1624,15 +1558,6 @@ void render(void) {
 }
 
 void free_memory(void) {
-    // Fill dgps
-    struct fill_dgp *p_i = fill_dgp_head;
-    while (p_i) {
-        struct fill_dgp *next = p_i->next;
-        free(p_i);
-        p_i = next;
-    }
-
-    alstring_destroy(terminal_input);
     mobj_destroy_all();
     shot_destroy_all();
 }

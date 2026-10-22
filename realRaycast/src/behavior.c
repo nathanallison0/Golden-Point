@@ -1,6 +1,12 @@
-shot *shot_create(float, float, float, float, mobj *);
-
-#include "pathfind.h"
+#include <behavior.h>
+#include <SDL3Start.h>
+#include <constants.h>
+#include <raycasts.h>
+#include <spritesRaw.h>
+#include <sounds.h>
+#include <engine.h>
+#include <shot.h>
+#include <pathfind.h>
 
 bool mobj_turn_towards(mobj *o, float target_angle, float speed) {
     float angle_diff = target_angle - o->angle;
@@ -43,14 +49,6 @@ bool mobj_sees_player(mobj *o) {
 }
 
 // Particle
-extra (
-    particle,
-    Uint8 frames;
-    float x_vel;
-    float y_vel;
-    float z_vel;
-);
-
 #define PARTICLE_RADIUS 5
 #define PARTICLE_LIFETIME 70
 #define PARTICLE_POS_DISP 5
@@ -111,16 +109,9 @@ void particle_behave(mobj *particle) {
 }
 
 // Enemy
-extra (
-    enemy,
-    float neutral_angle;
-    int health;
-);
-
 #define ENEMY_RADIUS 20 //10
 #define ENEMY_HEALTH 20
 #define ENEMY_START_SPRITE sprite_boxShaded
-#define ENEMY_DEFEATED_SPRITE sprite_plant
 void enemy_init(float x, float y, float z, float angle) {
     mobj *enemy = mobj_create(MOBJ_ENEMY, x, y, z, angle, ENEMY_RADIUS, ENEMY_START_SPRITE, MF_SHOOTABLE);
     __def_extra(enemy);
@@ -183,15 +174,6 @@ void enemy_behave(mobj *enemy) {
 
 #define SMART_ENEMY_SPRITE_DEFAULT sprite_boxShaded
 #define SMART_ENEMY_SPRITE_FLINCH sprite_boxHit
-enum {
-    SES_WATCH,
-    SES_MIGRATE,
-    SES_CHECK,
-    SES_CONFIRM,
-    SES_ATTACK,
-    SES_FLINCH
-};
-typedef Uint8 se_state;
 
 typedef struct {
     int x;
@@ -211,26 +193,6 @@ se_watchpoint se_watchpoints[NUM_SE_WATCHPOINTS] = {
     {19, 6, PI + PI_2, 0},
     {23, 10, PI_2 + PI_4, 0}
 };
-
-extra (
-    smart_enemy,
-    se_state state;
-    float seconds;
-    int health;
-    struct {
-        float x_vel;
-        float y_vel;
-        float *points;
-        int num_points;
-        int watchpoint_index;
-    } route;
-
-    struct {
-        float seconds_seeing;
-        float last_player_x;
-        float last_player_y;
-    } track;
-);
 
 void smart_enemy_occupy_watchpoint(mobj *smart_enemy, int index) {
     __def_extra(smart_enemy);
@@ -602,12 +564,16 @@ void smart_enemy_damage(mobj *smart_enemy, int damage) {
     }
 }
 
-void (*mobj_behaviors[NUM_MOBJ_TYPES])(mobj *) = {
+mobj_behavior mobj_behaviors[NUM_MOBJ_TYPES] = {
     NULL, // notype
     particle_behave,
     enemy_behave,
     smart_enemy_behave
 };
+
+mobj_behavior get_mobj_behavior(mobj_type type) {
+    return mobj_behaviors[type];
+}
 
 unsigned long mobj_extra_sizes[NUM_MOBJ_TYPES] = {
     0, // notype
@@ -615,3 +581,7 @@ unsigned long mobj_extra_sizes[NUM_MOBJ_TYPES] = {
     sizeof(enemy_extra),
     sizeof(smart_enemy_extra)
 };
+
+unsigned long get_mobj_extra_size(mobj_type type) {
+    return mobj_extra_sizes[type];
+}
