@@ -11,8 +11,6 @@ typedef struct {
     rgba *pixels;
 } image;
 
-#include <imagesRaw.h>
-
 #define SKY_IMAGE images[image_sky]
 
 /**

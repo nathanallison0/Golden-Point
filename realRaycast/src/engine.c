@@ -9,6 +9,7 @@
 #include <linkedList.h>
 #include <textures.h>
 #include <images.h>
+#include <imagesRaw.h>
 #include <sprites.h>
 #include <map.h>
 #include <raycasts.h>
